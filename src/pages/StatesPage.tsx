@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Map } from 'lucide-react';
 import { statesApi } from '../api/endpoints';
 import { StateCard } from '../components/StateCard';
-import { getErrorDetail } from '../api/client';
+import { ErrorNotice } from '../components/ErrorNotice';
 import { useAuth } from '../context/AuthContext';
 
 export function StatesPage() {
@@ -22,7 +22,7 @@ export function StatesPage() {
         <p className="lede">Twenty states. Home is identity — permits gate the rest.</p>
       </header>
       {statesQ.isLoading && <p>Loading…</p>}
-      {statesQ.isError && <p className="err-text">{getErrorDetail(statesQ.error)}</p>}
+      {statesQ.isError && <ErrorNotice error={statesQ.error} />}
       <div className="state-grid">
         {statesQ.data?.map((s) => (
           <Link key={s.id} to={`/states/${s.slug}`} className="state-link">

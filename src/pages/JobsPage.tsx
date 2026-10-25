@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Briefcase, Hammer, Zap } from 'lucide-react';
 import { jobsApi } from '../api/endpoints';
 import { useAuth } from '../context/AuthContext';
-import { getErrorDetail } from '../api/client';
+import { ErrorNotice } from '../components/ErrorNotice';
 import { useToast } from '../context/ToastContext';
 import { money } from '../lib/format';
 import { ConfirmModal } from '../components/ConfirmModal';
@@ -11,7 +11,7 @@ import { useState } from 'react';
 import type { JobListing } from '../types/api';
 
 export function JobsPage() {
-  const { character, refreshCharacter } = useAuth();
+  const { character, refreshCharacter, patchCharacter } = useAuth();
   const toast = useToast();
   const qc = useQueryClient();
   const locked = !!character?.is_jailed || !!character?.is_traveling || !!character?.is_hospitalized;
@@ -32,23 +32,25 @@ export function JobsPage() {
 
   const hireMut = useMutation({
     mutationFn: (listing_id: number) => jobsApi.hire(listing_id),
-    onSuccess: async () => {
+    onSuccess: () => {
       toast.push('Hired.', 'ok');
       setHireTarget(null);
-      await qc.invalidateQueries({ queryKey: ['jobs'] });
-      await refreshCharacter();
+      void qc.invalidateQueries({ queryKey: ['jobs'] });
+      void refreshCharacter();
     },
-    onError: (err) => toast.push(getErrorDetail(err), 'err'),
+    onError: (err) => toast.pushError(err),
   });
 
   const workMut = useMutation({
     mutationFn: () => jobsApi.work(),
-    onSuccess: async (res) => {
+    onSuccess: (res) => {
+      // Instant HUD — no full-session reload wait
+      patchCharacter({ cash: res.cash, energy: res.energy });
       toast.push(`Shift done. +${money(res.wage)} (−${res.energy_spent} energy).`, 'ok');
-      await qc.invalidateQueries({ queryKey: ['jobs'] });
-      await refreshCharacter();
+      void qc.invalidateQueries({ queryKey: ['jobs'] });
+      void refreshCharacter();
     },
-    onError: (err) => toast.push(getErrorDetail(err), 'err'),
+    onError: (err) => toast.pushError(err),
   });
 
   const energy = character?.energy ?? 0;
@@ -124,7 +126,7 @@ export function JobsPage() {
           <span className="muted sm">{listingsQ.data?.length ?? 0} in state</span>
         </div>
         {listingsQ.isLoading && <p className="muted">Loading listings…</p>}
-        {listingsQ.isError && <p className="err-text">{getErrorDetail(listingsQ.error)}</p>}
+        {listingsQ.isError && <ErrorNotice error={listingsQ.error} />}
         {!listingsQ.isLoading && !listingsQ.data?.length && (
           <p className="muted">No listings in this state.</p>
         )}

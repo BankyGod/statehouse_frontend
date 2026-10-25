@@ -2,7 +2,6 @@ import { useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Landmark, LogIn } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { getErrorDetail } from '../api/client';
 import { useToast } from '../context/ToastContext';
 
 export function LoginPage() {
@@ -21,7 +20,7 @@ export function LoginPage() {
       toast.push('Welcome back.', 'ok');
       nav('/');
     } catch (err) {
-      toast.push(getErrorDetail(err), 'err');
+      toast.pushError(err);
     } finally {
       setBusy(false);
     }

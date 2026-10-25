@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { charactersApi, statesApi } from '../api/endpoints';
-import { getErrorDetail } from '../api/client';
+import { ErrorNotice } from '../components/ErrorNotice';
 import { StateCard } from '../components/StateCard';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { useToast } from '../context/ToastContext';
@@ -47,11 +47,11 @@ export function CreateCharacterPage() {
         home_state_id: homeStateId,
         bio: bio.trim() || null,
       });
-      await refreshCharacter();
+      void refreshCharacter();
       toast.push(`Welcome to ${selected?.name ?? 'United Amir'}.`, 'ok');
       nav('/');
     } catch (err) {
-      toast.push(getErrorDetail(err), 'err');
+      toast.pushError(err);
     } finally {
       setBusy(false);
       setConfirmOpen(false);
@@ -96,7 +96,7 @@ export function CreateCharacterPage() {
 
         <h2>Home state</h2>
         {statesQ.isLoading && <p>Loading states…</p>}
-        {statesQ.isError && <p className="err-text">{getErrorDetail(statesQ.error)}</p>}
+        {statesQ.isError && <ErrorNotice error={statesQ.error} />}
         <div className="state-grid">
           {statesQ.data?.map((s) => (
             <StateCard

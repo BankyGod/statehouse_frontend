@@ -2,10 +2,10 @@ import { useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Flag, Swords, Users } from 'lucide-react';
 import { socialApi } from '../api/endpoints';
-import { useAuth } from '../context/AuthContext';
-import { getErrorDetail } from '../api/client';
-import { useToast } from '../context/ToastContext';
+import { ErrorNotice } from '../components/ErrorNotice';
 import { LockBanner } from '../components/LockBanner';
+import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 
 function relName(r: Record<string, unknown>) {
   return String(r.display_name ?? r.other_name ?? r.name ?? `#${r.id ?? '?'}`);
@@ -37,7 +37,7 @@ export function SocialPage() {
 
   async function refreshSocial() {
     await qc.invalidateQueries({ queryKey: ['social'] });
-    await refreshCharacter();
+    void refreshCharacter();
   }
 
   const friendMut = useMutation({
@@ -47,7 +47,7 @@ export function SocialPage() {
       setFriendName('');
       await refreshSocial();
     },
-    onError: (err) => toast.push(getErrorDetail(err), 'err'),
+    onError: (err) => toast.pushError(err),
   });
 
   const acceptMut = useMutation({
@@ -56,7 +56,7 @@ export function SocialPage() {
       toast.push('Friend accepted.', 'ok');
       await refreshSocial();
     },
-    onError: (err) => toast.push(getErrorDetail(err), 'err'),
+    onError: (err) => toast.pushError(err),
   });
 
   const enemyMut = useMutation({
@@ -66,7 +66,7 @@ export function SocialPage() {
       setEnemyName('');
       await refreshSocial();
     },
-    onError: (err) => toast.push(getErrorDetail(err), 'err'),
+    onError: (err) => toast.pushError(err),
   });
 
   const attackMut = useMutation({
@@ -82,7 +82,7 @@ export function SocialPage() {
       setAttackName('');
       await refreshSocial();
     },
-    onError: (err) => toast.push(getErrorDetail(err), 'err'),
+    onError: (err) => toast.pushError(err),
   });
 
   const createFactionMut = useMutation({
@@ -99,7 +99,7 @@ export function SocialPage() {
       setFactionDesc('');
       await refreshSocial();
     },
-    onError: (err) => toast.push(getErrorDetail(err), 'err'),
+    onError: (err) => toast.pushError(err),
   });
 
   const joinMut = useMutation({
@@ -108,7 +108,7 @@ export function SocialPage() {
       toast.push('Joined faction.', 'ok');
       await refreshSocial();
     },
-    onError: (err) => toast.push(getErrorDetail(err), 'err'),
+    onError: (err) => toast.pushError(err),
   });
 
   const dmMut = useMutation({
@@ -118,7 +118,7 @@ export function SocialPage() {
       setDmBody('');
       await refreshSocial();
     },
-    onError: (err) => toast.push(getErrorDetail(err), 'err'),
+    onError: (err) => toast.pushError(err),
   });
 
   const pending = relQ.data?.pending ?? [];
@@ -138,7 +138,8 @@ export function SocialPage() {
 
       <section className="play-section">
         <h2>World events</h2>
-        {!eventsQ.data?.length && <p className="muted">No active events.</p>}
+        {eventsQ.isError && <ErrorNotice error={eventsQ.error} />}
+        {!eventsQ.data?.length && !eventsQ.isLoading && <p className="muted">No active events.</p>}
         <div className="play-list">
           {eventsQ.data?.map((e) => (
             <article key={e.id} className="play-row compact">

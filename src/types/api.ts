@@ -11,10 +11,13 @@ export type PermitType = 'work' | 'business' | 'travel';
 
 export type CrimeType =
   | 'street_theft'
+  | 'pickpocket'
   | 'burglary'
+  | 'fencing'
+  | 'car_theft'
   | 'fraud'
   | 'smuggling'
-  | 'fencing';
+  | 'armed_robbery';
 
 export type JobSector =
   | 'government'
@@ -86,6 +89,8 @@ export type Character = {
   nerve: number;
   max_nerve: number;
   faction_id: number | null;
+  /** Automated citizen (same rules as players; not a login account). */
+  is_npc?: boolean;
 };
 
 export type GymStat = 'strength' | 'defense' | 'speed' | 'dexterity';
@@ -261,6 +266,7 @@ export type HealthStatus = {
   condition: string | null;
   clinic_cost_per_hp: number;
   hospital_base_hours: number;
+  seconds_remaining?: number;
 };
 
 export type ParliamentSeat = {
@@ -272,16 +278,21 @@ export type ParliamentSeat = {
   is_npc: boolean;
 };
 
+export type OfficeHolder = {
+  name: string;
+  character_id: number | null;
+  is_npc: boolean;
+};
+
 export type Parliament = {
   seats: ParliamentSeat[];
   majority_needed: number;
   veto_override_needed: number;
-  president: {
-    name: string;
-    character_id: number | null;
-    is_npc: boolean;
-  };
-  speaker_character_id: number | null;
+  president: OfficeHolder;
+  vice_president?: OfficeHolder;
+  speaker?: OfficeHolder;
+  /** @deprecated prefer speaker.character_id */
+  speaker_character_id?: number | null;
 };
 
 export type Election = {
@@ -394,6 +405,8 @@ export type BankSummary = {
   cash: number;
   bank_balance: number;
   loans: Loan[];
+  savings_apr?: number;
+  transfer_fee?: number;
 };
 
 export type BankMove = {
@@ -487,15 +500,35 @@ export type StateSummary = {
   name: string;
   capital: string;
   economic_profile: string;
+  /** Players + NPC citizens (list cards). */
   population_count: number;
   population_cap: number;
+  /** Automated citizens (do not fill player cap). */
+  npc_population_count?: number;
+  /** Real player home residents only. */
+  player_population?: number;
   is_open: boolean;
   average_income: number;
   starting_bonus: number;
   crime_catch_rate: number;
 };
 
-export type StateDetail = StateSummary & {
+export type StateDetail = {
+  id: number;
+  slug: string;
+  name: string;
+  capital: string;
+  economic_profile: string;
+  /** Player home residents only (detail). */
+  population_count: number;
+  population_cap: number;
+  npc_population_count?: number;
+  /** Players + NPCs. */
+  population_total?: number;
+  is_open: boolean;
+  average_income: number;
+  starting_bonus: number;
+  crime_catch_rate: number;
   base_tax_rate: number;
   permit_fee_multiplier: number;
   npc_mp_name: string | null;
@@ -592,6 +625,8 @@ export type CrimeCatalogItem = {
   base_catch_rate: number;
   jail_hours: number;
   fine: number;
+  nerve?: number;
+  tier?: number;
 };
 
 export type CrimeResult = {
@@ -611,6 +646,47 @@ export type CrimeResult = {
   injury?: number;
   nerve?: number;
   loot?: string | null;
+};
+
+export type PoliticalParty = {
+  id: number;
+  name: string;
+  short_name: string;
+  slogan: string;
+  ideology: string;
+  description: string;
+  color_hex: string;
+  leader: string;
+  is_npc_led: boolean;
+  player_members: number;
+  npc_members: number;
+  total_members: number;
+};
+
+export type PartyMembership = {
+  party_id: number;
+  party_name: string | null;
+  short_name: string | null;
+  rank: string;
+  joined_at: string;
+};
+
+export type GovernmentPost = {
+  id: number;
+  title: string;
+  agency: string;
+  portfolio: string | null;
+  state_id: number | null;
+  tier: string;
+  description: string;
+  wage_per_week: number;
+  min_education_level: number;
+  min_reputation: number;
+  requires_clean_record: boolean;
+  character_id: number | null;
+  holder_name: string;
+  is_npc: boolean;
+  hired_at: string | null;
 };
 
 export type ChatMessage = {

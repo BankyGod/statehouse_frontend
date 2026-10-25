@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { CandlestickChart, CircleDollarSign, Search, TrendingUp } from 'lucide-react';
 import { businessesApi, stocksApi } from '../api/endpoints';
 import { useAuth } from '../context/AuthContext';
-import { getErrorDetail } from '../api/client';
+import { ErrorNotice } from '../components/ErrorNotice';
 import { useToast } from '../context/ToastContext';
 import { money } from '../lib/format';
 import { loadHistory, recordPrice, type PricePoint } from '../lib/stockHistory';
@@ -57,7 +57,7 @@ export function StocksPage() {
   async function refreshMoney() {
     await qc.invalidateQueries({ queryKey: ['stocks'] });
     await qc.invalidateQueries({ queryKey: ['bank'] });
-    await refreshCharacter();
+    void refreshCharacter();
   }
 
   const buyMut = useMutation({
@@ -66,7 +66,7 @@ export function StocksPage() {
       toast.push(typeof res.message === 'string' ? res.message : 'Shares purchased.', 'ok');
       await refreshMoney();
     },
-    onError: (err) => toast.push(getErrorDetail(err), 'err'),
+    onError: (err) => toast.pushError(err),
   });
 
   const sellMut = useMutation({
@@ -75,7 +75,7 @@ export function StocksPage() {
       toast.push(typeof res.message === 'string' ? res.message : 'Shares sold.', 'ok');
       await refreshMoney();
     },
-    onError: (err) => toast.push(getErrorDetail(err), 'err'),
+    onError: (err) => toast.pushError(err),
   });
 
   const ipoMut = useMutation({
@@ -92,7 +92,7 @@ export function StocksPage() {
       setIpoSymbol('');
       await refreshMoney();
     },
-    onError: (err) => toast.push(getErrorDetail(err), 'err'),
+    onError: (err) => toast.pushError(err),
   });
 
   const placeOrderMut = useMutation({
@@ -109,7 +109,7 @@ export function StocksPage() {
       toast.push(`Sell order #${res.order_id} for ${res.symbol}.`, 'ok');
       await refreshMoney();
     },
-    onError: (err) => toast.push(getErrorDetail(err), 'err'),
+    onError: (err) => toast.pushError(err),
   });
 
   const fillOrderMut = useMutation({
@@ -119,7 +119,7 @@ export function StocksPage() {
       toast.push('Order filled.', 'ok');
       await refreshMoney();
     },
-    onError: (err) => toast.push(getErrorDetail(err), 'err'),
+    onError: (err) => toast.pushError(err),
   });
 
   const listings = marketQ.data?.listings ?? [];
@@ -368,7 +368,7 @@ export function StocksPage() {
         </div>
 
         {marketQ.isLoading && <p>Loading listings…</p>}
-        {marketQ.isError && <p className="err-text">{getErrorDetail(marketQ.error)}</p>}
+        {marketQ.isError && <ErrorNotice error={marketQ.error} />}
         {!filtered.length && !marketQ.isLoading && (
           <p className="muted">No listings match that filter.</p>
         )}

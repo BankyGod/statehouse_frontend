@@ -2,11 +2,11 @@ import { useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Package, ShoppingBag, Store } from 'lucide-react';
 import { inventoryApi } from '../api/endpoints';
+import { ErrorNotice } from '../components/ErrorNotice';
+import { LockBanner } from '../components/LockBanner';
 import { useAuth } from '../context/AuthContext';
-import { getErrorDetail } from '../api/client';
 import { useToast } from '../context/ToastContext';
 import { money } from '../lib/format';
-import { LockBanner } from '../components/LockBanner';
 
 export function InventoryPage() {
   const { character, refreshCharacter } = useAuth();
@@ -30,7 +30,7 @@ export function InventoryPage() {
   async function refreshAll() {
     await qc.invalidateQueries({ queryKey: ['inventory'] });
     await qc.invalidateQueries({ queryKey: ['activities'] });
-    await refreshCharacter();
+    void refreshCharacter();
   }
 
   const buyMut = useMutation({
@@ -39,7 +39,7 @@ export function InventoryPage() {
       toast.push(`Bought ${res.quantity}× ${res.item_key} for ${money(res.spent)}.`, 'ok');
       await refreshAll();
     },
-    onError: (err) => toast.push(getErrorDetail(err), 'err'),
+    onError: (err) => toast.pushError(err),
   });
 
   const useMut = useMutation({
@@ -48,7 +48,7 @@ export function InventoryPage() {
       toast.push(res.message, 'ok');
       await refreshAll();
     },
-    onError: (err) => toast.push(getErrorDetail(err), 'err'),
+    onError: (err) => toast.pushError(err),
   });
 
   const marketBuyMut = useMutation({
@@ -57,7 +57,7 @@ export function InventoryPage() {
       toast.push('Market purchase complete.', 'ok');
       await refreshAll();
     },
-    onError: (err) => toast.push(getErrorDetail(err), 'err'),
+    onError: (err) => toast.pushError(err),
   });
 
   const sellMut = useMutation({
@@ -73,7 +73,7 @@ export function InventoryPage() {
       setSellNote('');
       await refreshAll();
     },
-    onError: (err) => toast.push(getErrorDetail(err), 'err'),
+    onError: (err) => toast.pushError(err),
   });
 
   function onSell(e: FormEvent) {
@@ -99,7 +99,8 @@ export function InventoryPage() {
         <h2>
           <ShoppingBag size={16} aria-hidden /> Your bag
         </h2>
-        {!invQ.data?.length && <p className="muted">Empty.</p>}
+        {invQ.isError && <ErrorNotice error={invQ.error} />}
+        {!invQ.data?.length && !invQ.isLoading && <p className="muted">Empty.</p>}
         <div className="play-list">
           {invQ.data?.map((item) => (
             <article key={item.id} className="play-row">
@@ -131,6 +132,7 @@ export function InventoryPage() {
           <Store size={16} aria-hidden /> Shop
         </h2>
         {shopQ.isLoading && <p className="muted">Loading shop…</p>}
+        {shopQ.isError && <ErrorNotice error={shopQ.error} />}
         <div className="play-list">
           {shopQ.data?.map((item) => (
             <article key={item.item_key} className="play-row">

@@ -29,7 +29,7 @@ React + Vite + TypeScript, React Router, TanStack Query, Axios (Bearer JWT).
 | `/create-character` | State picker + display name |
 | `/` | Dashboard + HUD |
 | `/jobs` `/education` `/gym` `/inventory` `/business` `/bank` `/stocks` `/travel` `/housing` `/medical` | Life systems |
-| `/politics` `/legislation` `/cabinet` `/news` | Civic systems |
+| `/politics` `/parties` `/legislation` `/cabinet` `/government` `/news` | Civic systems |
 | `/permits` `/crime` `/jail` | Risk / custody |
 | `/social` `/activity` `/chat` | Social + alerts |
 | `/states` `/states/:slug` | State directory (full-bleed art) |

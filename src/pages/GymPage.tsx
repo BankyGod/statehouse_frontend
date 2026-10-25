@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Dumbbell, Zap } from 'lucide-react';
 import { gymApi } from '../api/endpoints';
 import { useAuth } from '../context/AuthContext';
-import { getErrorDetail } from '../api/client';
+import { ErrorNotice } from '../components/ErrorNotice';
 import { useToast } from '../context/ToastContext';
 import { LockBanner } from '../components/LockBanner';
 import type { GymStat } from '../types/api';
@@ -10,7 +10,7 @@ import type { GymStat } from '../types/api';
 const STAT_KEYS: GymStat[] = ['strength', 'defense', 'speed', 'dexterity'];
 
 export function GymPage() {
-  const { character, refreshCharacter } = useAuth();
+  const { character, refreshCharacter, patchCharacter } = useAuth();
   const toast = useToast();
   const qc = useQueryClient();
   const locked = !!character?.is_jailed || !!character?.is_traveling || !!character?.is_hospitalized;
@@ -22,12 +22,19 @@ export function GymPage() {
 
   const trainMut = useMutation({
     mutationFn: (stat: GymStat) => gymApi.train(stat),
-    onSuccess: async (res) => {
+    onSuccess: (res) => {
+      patchCharacter({
+        energy: res.energy,
+        strength: res.strength,
+        defense: res.defense,
+        speed: res.speed,
+        dexterity: res.dexterity,
+      });
       toast.push(`+${res.gained.toFixed(2)} ${res.stat} → ${res.new_value.toFixed(2)}`, 'ok');
-      await qc.invalidateQueries({ queryKey: ['gym'] });
-      await refreshCharacter();
+      void qc.invalidateQueries({ queryKey: ['gym'] });
+      void refreshCharacter();
     },
-    onError: (err) => toast.push(getErrorDetail(err), 'err'),
+    onError: (err) => toast.pushError(err),
   });
 
   const energy = character?.energy ?? 0;
@@ -64,7 +71,7 @@ export function GymPage() {
       </ul>
 
       {catalogQ.isLoading && <p className="muted">Loading…</p>}
-      {catalogQ.isError && <p className="err-text">{getErrorDetail(catalogQ.error)}</p>}
+      {catalogQ.isError && <ErrorNotice error={catalogQ.error} />}
 
       <div className="play-list">
         {catalogQ.data?.map((item) => {

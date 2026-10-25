@@ -1,8 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { GraduationCap } from 'lucide-react';
 import { educationApi } from '../api/endpoints';
+import { ErrorNotice } from '../components/ErrorNotice';
 import { useAuth } from '../context/AuthContext';
-import { getErrorDetail } from '../api/client';
 import { useToast } from '../context/ToastContext';
 import { money } from '../lib/format';
 import { Timer } from '../components/Timer';
@@ -34,9 +34,9 @@ export function EducationPage() {
       toast.push(`Enrolled in ${enr.title}.`, 'ok');
       setTarget(null);
       await qc.invalidateQueries({ queryKey: ['education'] });
-      await refreshCharacter();
+      void refreshCharacter();
     },
-    onError: (err) => toast.push(getErrorDetail(err), 'err'),
+    onError: (err) => toast.pushError(err),
   });
 
   const hasActive = meQ.data?.some((e) => e.status === 'in_progress' || e.status === 'active');
@@ -87,6 +87,7 @@ export function EducationPage() {
       <section>
         <h2>Catalog</h2>
         {catalogQ.isLoading && <p>Loading…</p>}
+        {catalogQ.isError && <ErrorNotice error={catalogQ.error} />}
         <div className="card-grid">
           {catalogQ.data?.map((item) => (
             <div key={item.track} className="info-card">

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Newspaper } from 'lucide-react';
 import { newsApi, statesApi } from '../api/endpoints';
-import { getErrorDetail } from '../api/client';
+import { ErrorNotice } from '../components/ErrorNotice';
 
 export function NewsPage() {
   const [category, setCategory] = useState('');
@@ -68,7 +68,7 @@ export function NewsPage() {
       </div>
 
       {newsQ.isLoading && <p>Loading headlines…</p>}
-      {newsQ.isError && <p className="err-text">{getErrorDetail(newsQ.error)}</p>}
+      {newsQ.isError && <ErrorNotice error={newsQ.error} />}
       {!newsQ.data?.length && !newsQ.isLoading && (
         <p className="muted">No stories yet.</p>
       )}

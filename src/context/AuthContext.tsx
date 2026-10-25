@@ -16,13 +16,17 @@ type AuthCtx = {
   token: string | null;
   user: UserOut | null;
   character: Character | null;
+  /** True only on first load with no cached character (never blocks mid-action). */
   characterLoading: boolean;
   characterMissing: boolean;
   authLoading: boolean;
   login: (username: string, password: string) => Promise<void>;
   register: (email: string, username: string, password: string) => Promise<void>;
   logout: () => void;
+  /** Soft background refresh — does not remount the app. */
   refreshCharacter: () => Promise<void>;
+  /** Merge HUD fields instantly (socket / action responses). */
+  patchCharacter: (partial: Partial<Character>) => void;
 };
 
 const Ctx = createContext<AuthCtx | null>(null);
@@ -41,6 +45,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     queryFn: () => authApi.me(),
     enabled: !!token,
     retry: false,
+    staleTime: 60_000,
   });
 
   const characterQuery = useQuery({
@@ -56,6 +61,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     enabled: !!token && !!userQuery.data,
     retry: false,
+    // Keep showing last HUD while refetching — critical for instant feel
+    placeholderData: (prev) => prev,
+    staleTime: 15_000,
   });
 
   useEffect(() => {
@@ -87,8 +95,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     qc.clear();
   }, [persist, qc]);
 
+  const patchCharacter = useCallback(
+    (partial: Partial<Character>) => {
+      if (!token) return;
+      qc.setQueryData<Character | null>(['character', 'me', token], (prev) => {
+        if (!prev) return prev;
+        return { ...prev, ...partial };
+      });
+    },
+    [qc, token],
+  );
+
   const refreshCharacter = useCallback(async () => {
-    await qc.invalidateQueries({ queryKey: ['character', 'me'] });
+    // Background refetch — UI stays mounted (RequireAuth only waits on first load)
+    await qc.invalidateQueries({ queryKey: ['character', 'me'], refetchType: 'active' });
   }, [qc]);
 
   const value = useMemo<AuthCtx>(
@@ -96,25 +116,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       token,
       user: userQuery.data ?? null,
       character: characterQuery.data ?? null,
-      characterLoading: characterQuery.isLoading || characterQuery.isFetching,
-      characterMissing: !!token && !!userQuery.data && characterQuery.data === null && !characterQuery.isLoading,
-      authLoading: !!token && userQuery.isLoading,
+      characterLoading: characterQuery.isPending && characterQuery.data === undefined,
+      characterMissing:
+        !!token &&
+        !!userQuery.data &&
+        characterQuery.data === null &&
+        !characterQuery.isPending,
+      authLoading: !!token && userQuery.isPending && !userQuery.data,
       login,
       register,
       logout,
       refreshCharacter,
+      patchCharacter,
     }),
     [
       token,
       userQuery.data,
-      userQuery.isLoading,
+      userQuery.isPending,
       characterQuery.data,
-      characterQuery.isLoading,
-      characterQuery.isFetching,
+      characterQuery.isPending,
       login,
       register,
       logout,
       refreshCharacter,
+      patchCharacter,
     ],
   );
 

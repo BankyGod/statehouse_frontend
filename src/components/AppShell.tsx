@@ -4,7 +4,9 @@ import {
   Bell,
   Briefcase,
   BriefcaseBusiness,
+  Building,
   Building2,
+  Flag,
   CandlestickChart,
   Dumbbell,
   Ellipsis,
@@ -67,7 +69,9 @@ export const NAV_GROUPS: {
     title: 'Nation',
     items: [
       { to: '/politics', label: 'Politics', Icon: Scale },
+      { to: '/parties', label: 'Parties', Icon: Flag },
       { to: '/cabinet', label: 'Cabinet', Icon: BriefcaseBusiness },
+      { to: '/government', label: 'Civil service', Icon: Building },
       { to: '/legislation', label: 'Laws', Icon: ScrollText },
       { to: '/permits', label: 'Permits', Icon: FileBadge },
     ],
@@ -146,7 +150,7 @@ export function AppShell() {
           ))}
         </nav>
 
-        <main className="page" key={loc.pathname}>
+        <main className="page">
           {character?.is_jailed && (
             <p className="page-jail-note">
               <Skull size={14} aria-hidden /> Jailed — actions locked until release.{' '}

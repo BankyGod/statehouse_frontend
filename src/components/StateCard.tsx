@@ -33,8 +33,18 @@ export function StateCard({ state, selected, onSelect, disabled, asLink }: Props
         <dl className="state-stats">
           <div>
             <dt>Pop</dt>
-            <dd>
-              {num(state.population_count)}/{num(state.population_cap)}
+            <dd
+              title={
+                state.npc_population_count != null
+                  ? `${state.player_population ?? 0} players · ${state.npc_population_count} NPCs (cap is players only)`
+                  : undefined
+              }
+            >
+              {num(state.population_count)}
+              <span className="muted">/{num(state.population_cap)}</span>
+              {state.npc_population_count != null && state.npc_population_count > 0 && (
+                <span className="muted sm"> · {num(state.npc_population_count)} NPC</span>
+              )}
             </dd>
           </div>
           <div>

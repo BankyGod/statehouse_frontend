@@ -11,14 +11,14 @@ import {
 } from 'lucide-react';
 import { bankApi } from '../api/endpoints';
 import { useAuth } from '../context/AuthContext';
-import { getErrorDetail } from '../api/client';
+import { ErrorNotice } from '../components/ErrorNotice';
 import { useToast } from '../context/ToastContext';
 import { money, pct } from '../lib/format';
 import { LockBanner } from '../components/LockBanner';
 import type { Loan } from '../types/api';
 
 export function BankPage() {
-  const { character, refreshCharacter } = useAuth();
+  const { character, refreshCharacter, patchCharacter } = useAuth();
   const toast = useToast();
   const qc = useQueryClient();
   const locked = !!character?.is_jailed || !!character?.is_traveling || !!character?.is_hospitalized;
@@ -41,58 +41,64 @@ export function BankPage() {
     refetchInterval: 45_000,
   });
 
-  async function afterMoney() {
-    await qc.invalidateQueries({ queryKey: ['bank'] });
-    await refreshCharacter();
+  function afterMoney(res?: { cash?: number; bank_balance?: number }) {
+    if (res && (res.cash != null || res.bank_balance != null)) {
+      patchCharacter({
+        ...(res.cash != null ? { cash: res.cash } : {}),
+        ...(res.bank_balance != null ? { bank_balance: res.bank_balance } : {}),
+      });
+    }
+    void qc.invalidateQueries({ queryKey: ['bank'] });
+    void refreshCharacter();
   }
 
   const depositMut = useMutation({
     mutationFn: (n: number) => bankApi.deposit(n),
-    onSuccess: async (res) => {
+    onSuccess: (res) => {
       toast.push(`Deposited ${money(res.moved)}. Bank ${money(res.bank_balance)}.`, 'ok');
-      await afterMoney();
+      afterMoney(res);
     },
-    onError: (err) => toast.push(getErrorDetail(err), 'err'),
+    onError: (err) => toast.pushError(err),
   });
 
   const withdrawMut = useMutation({
     mutationFn: (n: number) => bankApi.withdraw(n),
-    onSuccess: async (res) => {
+    onSuccess: (res) => {
       toast.push(`Withdrew ${money(res.moved)}. Cash ${money(res.cash)}.`, 'ok');
-      await afterMoney();
+      afterMoney(res);
     },
-    onError: (err) => toast.push(getErrorDetail(err), 'err'),
+    onError: (err) => toast.pushError(err),
   });
 
   const loanMut = useMutation({
     mutationFn: (n: number) => bankApi.createLoan(n),
-    onSuccess: async (loan) => {
+    onSuccess: (loan) => {
       toast.push(`Loan issued: ${money(loan.principal)} @ ${pct(loan.interest_rate)}.`, 'ok');
-      await afterMoney();
+      afterMoney();
     },
-    onError: (err) => toast.push(getErrorDetail(err), 'err'),
+    onError: (err) => toast.pushError(err),
   });
 
   const repayMut = useMutation({
     mutationFn: ({ id, n }: { id: number; n: number }) => bankApi.repayLoan(id, n),
-    onSuccess: async (loan) => {
+    onSuccess: (loan) => {
       toast.push(`Payment recorded. Remaining ${money(loan.remaining)}.`, 'ok');
-      await afterMoney();
+      afterMoney();
     },
-    onError: (err) => toast.push(getErrorDetail(err), 'err'),
+    onError: (err) => toast.pushError(err),
   });
 
   const transferMut = useMutation({
     mutationFn: ({ to, n }: { to: string; n: number }) => bankApi.transfer(to, n),
-    onSuccess: async (res) => {
+    onSuccess: (res) => {
       toast.push(
         typeof res.message === 'string' ? res.message : `Transferred ${money(Number(transferAmount))}.`,
         'ok',
       );
       setTransferTo('');
-      await afterMoney();
+      afterMoney(res as { cash?: number; bank_balance?: number });
     },
-    onError: (err) => toast.push(getErrorDetail(err), 'err'),
+    onError: (err) => toast.pushError(err),
   });
 
   function parseAmount(raw: string): number | null {
@@ -157,6 +163,20 @@ export function BankPage() {
           <em>Bank</em>
           <strong className="cash">{money(bankBal)}</strong>
         </div>
+        {summary?.savings_apr != null && (
+          <div className="bank-bal-card">
+            <PiggyBank size={16} aria-hidden />
+            <em>Savings APR</em>
+            <strong>{(summary.savings_apr * 100).toFixed(1)}%</strong>
+          </div>
+        )}
+        {summary?.transfer_fee != null && (
+          <div className="bank-bal-card">
+            <Wallet size={16} aria-hidden />
+            <em>Transfer fee</em>
+            <strong>{money(summary.transfer_fee)}</strong>
+          </div>
+        )}
       </section>
 
       <section className="play-hero ready bank-move">
@@ -311,7 +331,7 @@ export function BankPage() {
           <Receipt size={18} aria-hidden /> Recent transactions
         </h2>
         {txQ.isLoading && <p className="muted">Loading ledger…</p>}
-        {txQ.isError && <p className="err-text">{getErrorDetail(txQ.error)}</p>}
+        {txQ.isError && <ErrorNotice error={txQ.error} />}
         {!txQ.data?.length && !txQ.isLoading && <p className="muted">No transactions yet.</p>}
         <div className="play-list ledger-list">
           {txQ.data?.map((tx) => (

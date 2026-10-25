@@ -1,10 +1,10 @@
+import { ErrorNotice } from '../components/ErrorNotice';
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Landmark, Scale, Trophy, Vote } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { politicsApi, statesApi } from '../api/endpoints';
 import { useAuth } from '../context/AuthContext';
-import { getErrorDetail } from '../api/client';
 import { useToast } from '../context/ToastContext';
 import type { Candidacy, RaceType } from '../types/api';
 import { ConfirmModal } from '../components/ConfirmModal';
@@ -53,7 +53,7 @@ export function PoliticsPage() {
       toast.push(`Registered for ${raceType}.`, 'ok');
       await qc.invalidateQueries({ queryKey: ['politics'] });
     },
-    onError: (err) => toast.push(getErrorDetail(err), 'err'),
+    onError: (err) => toast.pushError(err),
   });
 
   const voteMut = useMutation({
@@ -63,7 +63,7 @@ export function PoliticsPage() {
       setVoteTarget(null);
       await qc.invalidateQueries({ queryKey: ['politics'] });
     },
-    onError: (err) => toast.push(getErrorDetail(err), 'err'),
+    onError: (err) => toast.pushError(err),
   });
 
   const resolveMut = useMutation({
@@ -73,7 +73,7 @@ export function PoliticsPage() {
       setResolveOpen(false);
       await qc.invalidateQueries({ queryKey: ['politics'] });
     },
-    onError: (err) => toast.push(getErrorDetail(err), 'err'),
+    onError: (err) => toast.pushError(err),
   });
 
   const stateName = (id: number | null) =>
@@ -101,9 +101,7 @@ export function PoliticsPage() {
           <Landmark size={18} aria-hidden /> Parliament
         </h2>
         {parliamentQ.isLoading && <p className="muted">Loading…</p>}
-        {parliamentQ.isError && (
-          <p className="err-text">{getErrorDetail(parliamentQ.error)}</p>
-        )}
+        {parliamentQ.isError && <ErrorNotice error={parliamentQ.error} />}
         {(isPresident || isMp) && (
           <p className="your-office">
             Your office:{' '}
@@ -127,6 +125,19 @@ export function PoliticsPage() {
                 {parliamentQ.data.veto_override_needed}
               </span>
             )}
+          </p>
+        )}
+        {parliamentQ.data?.vice_president && (
+          <p>
+            Vice President:{' '}
+            <strong>{parliamentQ.data.vice_president.name}</strong>
+            {parliamentQ.data.vice_president.is_npc ? ' (NPC)' : ''}
+          </p>
+        )}
+        {parliamentQ.data?.speaker && (
+          <p>
+            Speaker: <strong>{parliamentQ.data.speaker.name}</strong>
+            {parliamentQ.data.speaker.is_npc ? ' (NPC)' : ''}
           </p>
         )}
         <div className="list-table politics-seats">

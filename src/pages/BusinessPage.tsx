@@ -2,12 +2,12 @@ import { useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Building2 } from 'lucide-react';
 import { businessesApi, statesApi } from '../api/endpoints';
+import { ErrorNotice } from '../components/ErrorNotice';
+import { LockBanner } from '../components/LockBanner';
+import { Timer } from '../components/Timer';
 import { useAuth } from '../context/AuthContext';
-import { getErrorDetail } from '../api/client';
 import { useToast } from '../context/ToastContext';
 import { money } from '../lib/format';
-import { Timer } from '../components/Timer';
-import { LockBanner } from '../components/LockBanner';
 import type { Business, EmployeeRole } from '../types/api';
 
 const ROLES: EmployeeRole[] = ['labourer', 'clerk', 'specialist', 'manager', 'executive'];
@@ -65,9 +65,9 @@ export function BusinessPage() {
       setDescription('');
       setSelectedId(b.id);
       await qc.invalidateQueries({ queryKey: ['businesses'] });
-      await refreshCharacter();
+      void refreshCharacter();
     },
-    onError: (err) => toast.push(getErrorDetail(err), 'err'),
+    onError: (err) => toast.pushError(err),
   });
 
   const depositMut = useMutation({
@@ -75,9 +75,9 @@ export function BusinessPage() {
     onSuccess: async (res) => {
       toast.push(`Deposited ${money(res.deposited)}. Treasury ${money(res.business_cash)}.`, 'ok');
       await qc.invalidateQueries({ queryKey: ['businesses'] });
-      await refreshCharacter();
+      void refreshCharacter();
     },
-    onError: (err) => toast.push(getErrorDetail(err), 'err'),
+    onError: (err) => toast.pushError(err),
   });
 
   const withdrawMut = useMutation({
@@ -85,9 +85,9 @@ export function BusinessPage() {
     onSuccess: async () => {
       toast.push('Withdrew from treasury.', 'ok');
       await qc.invalidateQueries({ queryKey: ['businesses'] });
-      await refreshCharacter();
+      void refreshCharacter();
     },
-    onError: (err) => toast.push(getErrorDetail(err), 'err'),
+    onError: (err) => toast.pushError(err),
   });
 
   const hireNpcMut = useMutation({
@@ -101,7 +101,7 @@ export function BusinessPage() {
       setNpcName('');
       await qc.invalidateQueries({ queryKey: ['businesses'] });
     },
-    onError: (err) => toast.push(getErrorDetail(err), 'err'),
+    onError: (err) => toast.pushError(err),
   });
 
   const hirePlayerMut = useMutation({
@@ -115,7 +115,7 @@ export function BusinessPage() {
       setPlayerName('');
       await qc.invalidateQueries({ queryKey: ['businesses'] });
     },
-    onError: (err) => toast.push(getErrorDetail(err), 'err'),
+    onError: (err) => toast.pushError(err),
   });
 
   const fireMut = useMutation({
@@ -124,7 +124,7 @@ export function BusinessPage() {
       toast.push('Employee fired.', 'ok');
       await qc.invalidateQueries({ queryKey: ['businesses'] });
     },
-    onError: (err) => toast.push(getErrorDetail(err), 'err'),
+    onError: (err) => toast.pushError(err),
   });
 
   function onSubmit(e: FormEvent) {
@@ -205,7 +205,8 @@ export function BusinessPage() {
 
       <section className="play-section">
         <h2>My businesses</h2>
-        {!meQ.data?.length && <p className="muted">None yet.</p>}
+        {meQ.isError && <ErrorNotice error={meQ.error} />}
+        {!meQ.data?.length && !meQ.isLoading && <p className="muted">None yet.</p>}
         <div className="play-list">
           {meQ.data?.map((b) => (
             <BusinessPick

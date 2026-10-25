@@ -3,7 +3,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { MapPin, Plane, Route } from 'lucide-react';
 import { statesApi, travelApi } from '../api/endpoints';
 import { useAuth } from '../context/AuthContext';
-import { getErrorDetail } from '../api/client';
 import { useToast } from '../context/ToastContext';
 import { money } from '../lib/format';
 import { Timer } from '../components/Timer';
@@ -45,7 +44,7 @@ export function TravelPage() {
     },
     onError: (err) => {
       setQuote(null);
-      toast.push(getErrorDetail(err), 'err');
+      toast.pushError(err);
     },
   });
 
@@ -60,9 +59,9 @@ export function TravelPage() {
       setConfirmOpen(false);
       setQuote(null);
       await qc.invalidateQueries({ queryKey: ['character'] });
-      await refreshCharacter();
+      void refreshCharacter();
     },
-    onError: (err) => toast.push(getErrorDetail(err), 'err'),
+    onError: (err) => toast.pushError(err),
   });
 
   const destinations =

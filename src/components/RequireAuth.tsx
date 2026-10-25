@@ -6,7 +6,8 @@ export function RequireAuth() {
   const loc = useLocation();
 
   if (!token) return <Navigate to="/login" replace state={{ from: loc.pathname }} />;
-  if (authLoading || characterLoading) {
+  // Only block the shell on the *first* character load — never on post-action refetch
+  if (authLoading || (characterLoading && !character)) {
     return <div className="center-screen">Loading session…</div>;
   }
   if (characterMissing || !character) return <Navigate to="/create-character" replace />;

@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Activity, HeartPulse, Hospital, Syringe } from 'lucide-react';
 import { medicalApi } from '../api/endpoints';
+import { ErrorNotice } from '../components/ErrorNotice';
 import { useAuth } from '../context/AuthContext';
-import { getErrorDetail } from '../api/client';
 import { useToast } from '../context/ToastContext';
 import { money } from '../lib/format';
 import { Timer } from '../components/Timer';
@@ -27,7 +27,7 @@ export function MedicalPage() {
 
   async function afterHeal() {
     await qc.invalidateQueries({ queryKey: ['medical'] });
-    await refreshCharacter();
+    void refreshCharacter();
   }
 
   const clinicMut = useMutation({
@@ -40,7 +40,7 @@ export function MedicalPage() {
       toast.push(msg, 'ok');
       await afterHeal();
     },
-    onError: (err) => toast.push(getErrorDetail(err), 'err'),
+    onError: (err) => toast.pushError(err),
   });
 
   const hospitalMut = useMutation({
@@ -52,7 +52,7 @@ export function MedicalPage() {
       setHospitalOpen(false);
       await afterHeal();
     },
-    onError: (err) => toast.push(getErrorDetail(err), 'err'),
+    onError: (err) => toast.pushError(err),
   });
 
   const status = healthQ.data;
@@ -79,6 +79,7 @@ export function MedicalPage() {
           <Activity size={18} aria-hidden /> Status
         </h2>
         {healthQ.isLoading && <p className="muted">Loading…</p>}
+        {healthQ.isError && <ErrorNotice error={healthQ.error} />}
         <div className="health-block">
           <div className="health-bar-track" aria-hidden>
             <div

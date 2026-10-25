@@ -25,7 +25,6 @@ import {
   statesApi,
 } from '../api/endpoints';
 import { useAuth } from '../context/AuthContext';
-import { getErrorDetail } from '../api/client';
 import { useToast } from '../context/ToastContext';
 import { usePoliticalRoles } from '../hooks/usePoliticalRoles';
 import { canResetHome, money, num } from '../lib/format';
@@ -76,9 +75,9 @@ export function ProfilePage() {
       setConfirm(false);
       setNewHome(null);
       await qc.invalidateQueries();
-      await refreshCharacter();
+      void refreshCharacter();
     },
-    onError: (err) => toast.push(getErrorDetail(err), 'err'),
+    onError: (err) => toast.pushError(err),
   });
 
   const stateName = useMemo(() => {

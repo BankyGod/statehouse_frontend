@@ -3,7 +3,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { FileBadge } from 'lucide-react';
 import { permitsApi, statesApi } from '../api/endpoints';
 import { useAuth } from '../context/AuthContext';
-import { getErrorDetail } from '../api/client';
 import { useToast } from '../context/ToastContext';
 import { money } from '../lib/format';
 import type { PermitType } from '../types/api';
@@ -38,9 +37,9 @@ export function PermitsPage() {
     onSuccess: async (p) => {
       toast.push(`Permit applied (${p.permit_type}) — fee ${money(p.fee_paid)}.`, 'ok');
       await qc.invalidateQueries({ queryKey: ['permits'] });
-      await refreshCharacter();
+      void refreshCharacter();
     },
-    onError: (err) => toast.push(getErrorDetail(err), 'err'),
+    onError: (err) => toast.pushError(err),
   });
 
   function onSubmit(e: FormEvent) {

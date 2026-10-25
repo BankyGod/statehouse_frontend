@@ -1,8 +1,8 @@
+import { ErrorNotice } from '../components/ErrorNotice';
 import { Link, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft } from 'lucide-react';
 import { statesApi } from '../api/endpoints';
-import { getErrorDetail } from '../api/client';
 import { money, num, pct, securityLabel } from '../lib/format';
 import { useAuth } from '../context/AuthContext';
 import { getStateTheme } from '../lib/stateArt';
@@ -18,7 +18,7 @@ export function StateDetailPage() {
   });
 
   if (q.isLoading) return <p>Loading…</p>;
-  if (q.isError) return <p className="err-text">{getErrorDetail(q.error)}</p>;
+  if (q.isError) return <ErrorNotice error={q.error} />;
   if (!q.data) return <p>Not found.</p>;
 
   const s = q.data;
@@ -53,9 +53,22 @@ export function StateDetailPage() {
 
       <dl className="detail-grid">
         <div>
-          <dt>Population</dt>
+          <dt>Citizens</dt>
+          <dd>
+            {num(s.population_total ?? s.population_count + (s.npc_population_count ?? 0))}
+            {s.npc_population_count != null && (
+              <span className="muted">
+                {' '}
+                ({num(s.population_count)} players · {num(s.npc_population_count)} NPCs)
+              </span>
+            )}
+          </dd>
+        </div>
+        <div>
+          <dt>Player slots</dt>
           <dd>
             {num(s.population_count)} / {num(s.population_cap)}
+            {!s.is_open && <span className="badge warn">Full</span>}
           </dd>
         </div>
         <div>

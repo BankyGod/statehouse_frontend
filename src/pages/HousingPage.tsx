@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Home, KeyRound, LogOut, ShoppingCart, Zap } from 'lucide-react';
 import { housingApi, statesApi } from '../api/endpoints';
 import { useAuth } from '../context/AuthContext';
-import { getErrorDetail } from '../api/client';
+import { ErrorNotice } from '../components/ErrorNotice';
 import { useToast } from '../context/ToastContext';
 import { money } from '../lib/format';
 import { Timer } from '../components/Timer';
@@ -45,7 +45,7 @@ export function HousingPage() {
 
   async function afterHousing() {
     await qc.invalidateQueries({ queryKey: ['housing'] });
-    await refreshCharacter();
+    void refreshCharacter();
   }
 
   const rentMut = useMutation({
@@ -55,7 +55,7 @@ export function HousingPage() {
       setRentTarget(null);
       await afterHousing();
     },
-    onError: (err) => toast.push(getErrorDetail(err), 'err'),
+    onError: (err) => toast.pushError(err),
   });
 
   const buyMut = useMutation({
@@ -65,7 +65,7 @@ export function HousingPage() {
       setBuyTarget(null);
       await afterHousing();
     },
-    onError: (err) => toast.push(getErrorDetail(err), 'err'),
+    onError: (err) => toast.pushError(err),
   });
 
   const leaveMut = useMutation({
@@ -75,7 +75,7 @@ export function HousingPage() {
       setLeaveOpen(false);
       await afterHousing();
     },
-    onError: (err) => toast.push(getErrorDetail(err), 'err'),
+    onError: (err) => toast.pushError(err),
   });
 
   const residence = meQ.data;
@@ -175,7 +175,7 @@ export function HousingPage() {
         </div>
 
         {listingsQ.isLoading && <p>Loading listings…</p>}
-        {listingsQ.isError && <p className="err-text">{getErrorDetail(listingsQ.error)}</p>}
+        {listingsQ.isError && <ErrorNotice error={listingsQ.error} />}
 
         <div className="list-table">
           {listingsQ.data?.map((l) => {

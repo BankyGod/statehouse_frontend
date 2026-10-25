@@ -59,6 +59,9 @@ import type {
   TravelStartResult,
   UserOut,
   VoteChoice,
+  PoliticalParty,
+  PartyMembership,
+  GovernmentPost,
 } from '../types/api';
 
 export const authApi = {
@@ -449,6 +452,41 @@ export const cabinetApi = {
       .then((r) => r.data),
   resign: () =>
     api.post<Record<string, unknown>>('/api/cabinet/resign').then((r) => r.data),
+};
+
+export const partiesApi = {
+  list: () =>
+    api.get<{ parties: PoliticalParty[] }>('/api/parties').then((r) => r.data.parties),
+  me: () =>
+    api
+      .get<{ membership: PartyMembership | null }>('/api/parties/me')
+      .then((r) => r.data.membership),
+  join: (party_id: number) =>
+    api.post<Record<string, unknown>>('/api/parties/join', { party_id }).then((r) => r.data),
+  leave: () =>
+    api.post<Record<string, unknown>>('/api/parties/leave').then((r) => r.data),
+};
+
+export const governmentApi = {
+  posts: (params?: { state_id?: number; open_only?: boolean }) =>
+    api
+      .get<{ posts: GovernmentPost[] }>('/api/government/posts', { params })
+      .then((r) => r.data.posts),
+  me: () =>
+    api
+      .get<{ post: GovernmentPost | null }>('/api/government/me')
+      .then((r) => r.data.post),
+  apply: (post_id: number) =>
+    api
+      .post<GovernmentPost & { message?: string; displaced_npc?: string | null }>(
+        '/api/government/apply',
+        { post_id },
+      )
+      .then((r) => r.data),
+  resign: () =>
+    api
+      .post<{ resigned: boolean; title: string; npc_caretaker: string }>('/api/government/resign')
+      .then((r) => r.data),
 };
 
 function asMessageList(data: ChatMessage[] | ChatMessage | null | undefined): ChatMessage[] {

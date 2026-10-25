@@ -2,7 +2,6 @@ import { useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Landmark, UserPlus } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { getErrorDetail } from '../api/client';
 import { useToast } from '../context/ToastContext';
 
 export function RegisterPage() {
@@ -22,7 +21,7 @@ export function RegisterPage() {
       toast.push('Account created. Pick your home state.', 'ok');
       nav('/create-character');
     } catch (err) {
-      toast.push(getErrorDetail(err), 'err');
+      toast.pushError(err);
     } finally {
       setBusy(false);
     }

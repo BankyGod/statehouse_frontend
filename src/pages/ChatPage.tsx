@@ -1,9 +1,9 @@
+import { ErrorNotice } from '../components/ErrorNotice';
 import { useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { MessagesSquare, Send } from 'lucide-react';
 import { chatApi, statesApi } from '../api/endpoints';
-import { getErrorDetail } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 
@@ -46,7 +46,8 @@ export function ChatPage() {
         ? chatApi.home({ limit: 80 })
         : chatApi.state(targetStateId!, { limit: 80 }),
     enabled: channel === 'home' || targetStateId != null,
-    refetchInterval: 8_000,
+    // Socket.IO pushes new messages; light poll only as backup
+    refetchInterval: 45_000,
   });
 
   const postMut = useMutation({
@@ -58,7 +59,7 @@ export function ChatPage() {
       setDraft('');
       await qc.invalidateQueries({ queryKey: ['chat'] });
     },
-    onError: (err) => toast.push(getErrorDetail(err), 'err'),
+    onError: (err) => toast.pushError(err),
   });
 
   useEffect(() => {
@@ -145,7 +146,7 @@ export function ChatPage() {
         <div className="chat-feed" ref={feedRef}>
           {messagesQ.isLoading && <p className="muted">Loading messages…</p>}
           {messagesQ.isError && (
-            <p className="err-text">{getErrorDetail(messagesQ.error)}</p>
+            <ErrorNotice error={messagesQ.error} />
           )}
           {!messagesQ.isLoading && !messages.length && (
             <p className="muted">No messages yet. Be the first to speak.</p>

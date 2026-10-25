@@ -2,6 +2,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
+import { RealtimeProvider } from './realtime/RealtimeProvider';
 import { AppShell } from './components/AppShell';
 import { GuestOnly, RequireAuth } from './components/RequireAuth';
 import { LoginPage } from './pages/LoginPage';
@@ -24,6 +25,8 @@ import { PoliticsPage } from './pages/PoliticsPage';
 import { LegislationPage } from './pages/LegislationPage';
 import { NewsPage } from './pages/NewsPage';
 import { CabinetPage } from './pages/CabinetPage';
+import { PartiesPage } from './pages/PartiesPage';
+import { GovernmentPage } from './pages/GovernmentPage';
 import { ChatPage } from './pages/ChatPage';
 import { StocksPage } from './pages/StocksPage';
 import { GymPage } from './pages/GymPage';
@@ -35,8 +38,8 @@ import { ActivityPage } from './pages/ActivityPage';
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 10_000,
-      refetchOnWindowFocus: true,
+      staleTime: 20_000,
+      refetchOnWindowFocus: false,
     },
   },
 });
@@ -46,6 +49,7 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <ToastProvider>
         <AuthProvider>
+          <RealtimeProvider>
           <BrowserRouter>
             <Routes>
               <Route element={<GuestOnly />}>
@@ -80,6 +84,8 @@ export default function App() {
                   <Route path="/legislation" element={<LegislationPage />} />
                   <Route path="/news" element={<NewsPage />} />
                   <Route path="/cabinet" element={<CabinetPage />} />
+                  <Route path="/parties" element={<PartiesPage />} />
+                  <Route path="/government" element={<GovernmentPage />} />
                   <Route path="/chat" element={<ChatPage />} />
                 </Route>
               </Route>
@@ -87,6 +93,7 @@ export default function App() {
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </BrowserRouter>
+          </RealtimeProvider>
         </AuthProvider>
       </ToastProvider>
     </QueryClientProvider>

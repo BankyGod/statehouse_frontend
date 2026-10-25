@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { FileText, Gavel, ScrollText } from 'lucide-react';
 import { legislationApi, statesApi } from '../api/endpoints';
 import { useAuth } from '../context/AuthContext';
-import { getErrorDetail } from '../api/client';
+import { ErrorNotice } from '../components/ErrorNotice';
 import { useToast } from '../context/ToastContext';
 import { pct } from '../lib/format';
 import { Timer } from '../components/Timer';
@@ -50,7 +50,7 @@ export function LegislationPage() {
       await qc.invalidateQueries({ queryKey: ['legislation'] });
       await qc.invalidateQueries({ queryKey: ['news'] });
     },
-    onError: (err) => toast.push(getErrorDetail(err), 'err'),
+    onError: (err) => toast.pushError(err),
   });
 
   const voteBillMut = useMutation({
@@ -60,7 +60,7 @@ export function LegislationPage() {
       toast.push(`Bill vote: ${vars.choice}`, 'ok');
       await qc.invalidateQueries({ queryKey: ['legislation'] });
     },
-    onError: (err) => toast.push(getErrorDetail(err), 'err'),
+    onError: (err) => toast.pushError(err),
   });
 
   const vetoMut = useMutation({
@@ -71,7 +71,7 @@ export function LegislationPage() {
       await qc.invalidateQueries({ queryKey: ['legislation'] });
       await qc.invalidateQueries({ queryKey: ['news'] });
     },
-    onError: (err) => toast.push(getErrorDetail(err), 'err'),
+    onError: (err) => toast.pushError(err),
   });
 
   const voteBudgetMut = useMutation({
@@ -81,7 +81,7 @@ export function LegislationPage() {
       toast.push(`Budget vote: ${vars.choice}`, 'ok');
       await qc.invalidateQueries({ queryKey: ['legislation'] });
     },
-    onError: (err) => toast.push(getErrorDetail(err), 'err'),
+    onError: (err) => toast.pushError(err),
   });
 
   const stateName = (id: number | null) =>
@@ -223,7 +223,7 @@ export function LegislationPage() {
         </div>
 
         {billsQ.isLoading && <p>Loading bills…</p>}
-        {billsQ.isError && <p className="err-text">{getErrorDetail(billsQ.error)}</p>}
+        {billsQ.isError && <ErrorNotice error={billsQ.error} />}
         {!billsQ.data?.length && !billsQ.isLoading && (
           <p className="muted">No bills yet.</p>
         )}

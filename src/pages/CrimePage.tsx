@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlertOctagon, Flame, Gavel, Skull, Zap } from 'lucide-react';
 import { crimeApi, jailApi, statesApi } from '../api/endpoints';
 import { useAuth } from '../context/AuthContext';
-import { getErrorDetail } from '../api/client';
+import { ErrorNotice } from '../components/ErrorNotice';
 import { useToast } from '../context/ToastContext';
 import { money, pct } from '../lib/format';
 import { ConfirmModal } from '../components/ConfirmModal';
@@ -12,7 +12,7 @@ import { useState } from 'react';
 import type { CrimeCatalogItem } from '../types/api';
 
 export function CrimePage() {
-  const { character, refreshCharacter } = useAuth();
+  const { character, refreshCharacter, patchCharacter } = useAuth();
   const toast = useToast();
   const qc = useQueryClient();
   const locked = !!character?.is_jailed || !!character?.is_traveling || !!character?.is_hospitalized;
@@ -42,14 +42,22 @@ export function CrimePage() {
 
   const commitMut = useMutation({
     mutationFn: (crime_type: CrimeCatalogItem['crime_type']) => crimeApi.commit(crime_type),
-    onSuccess: async (res) => {
+    onSuccess: (res) => {
+      patchCharacter({
+        cash: res.character_cash,
+        heat: res.character_heat,
+        is_jailed: res.is_jailed,
+        ...(res.health != null ? { health: res.health } : {}),
+        ...(res.is_hospitalized != null ? { is_hospitalized: res.is_hospitalized } : {}),
+        ...(res.nerve != null ? { nerve: res.nerve } : {}),
+      });
       toast.push(res.message, res.caught ? 'err' : 'ok');
       setTarget(null);
-      await qc.invalidateQueries({ queryKey: ['crime'] });
-      await qc.invalidateQueries({ queryKey: ['jail'] });
-      await refreshCharacter();
+      void qc.invalidateQueries({ queryKey: ['crime'] });
+      void qc.invalidateQueries({ queryKey: ['jail'] });
+      void refreshCharacter();
     },
-    onError: (err) => toast.push(getErrorDetail(err), 'err'),
+    onError: (err) => toast.pushError(err),
   });
 
   const energy = character?.energy ?? 0;
@@ -113,7 +121,7 @@ export function CrimePage() {
       </ul>
 
       {catalogQ.isLoading && <p className="muted">Loading catalog…</p>}
-      {catalogQ.isError && <p className="err-text">{getErrorDetail(catalogQ.error)}</p>}
+      {catalogQ.isError && <ErrorNotice error={catalogQ.error} />}
 
       <div className="play-list">
         {catalogQ.data?.map((c) => {
@@ -124,9 +132,11 @@ export function CrimePage() {
               <div className="play-row-main">
                 <div className="play-row-title">
                   <strong>{c.label}</strong>
+                  {c.tier != null && <span className="badge">T{c.tier}</span>}
                 </div>
                 <div className="play-row-meta">
                   <span>{c.energy} en</span>
+                  {c.nerve != null && <span>{c.nerve} nerve</span>}
                   <span className="cash">
                     {money(c.min_payout)}–{money(c.max_payout)}
                   </span>
@@ -135,11 +145,16 @@ export function CrimePage() {
                   <span>{c.jail_hours}h jail</span>
                 </div>
                 {lowEnergy && <p className="err-text">Need {c.energy} energy.</p>}
+                {c.nerve != null && nerve < c.nerve && (
+                  <p className="err-text">Need {c.nerve} nerve.</p>
+                )}
               </div>
               <button
                 type="button"
                 className="btn danger play-cta"
-                disabled={!canCommit}
+                disabled={
+                  !canCommit || (c.nerve != null && nerve < c.nerve)
+                }
                 onClick={() => setTarget(c)}
               >
                 Commit
@@ -193,8 +208,10 @@ export function CrimePage() {
               {money(target.fine)}.
             </p>
             <p>
-              {target.label}: {target.energy} energy, payout {money(target.min_payout)}–
-              {money(target.max_payout)}, base catch {pct(target.base_catch_rate)}.
+              {target.label}: {target.energy} energy
+              {target.nerve != null ? `, ${target.nerve} nerve` : ''}, payout{' '}
+              {money(target.min_payout)}–{money(target.max_payout)}, base catch{' '}
+              {pct(target.base_catch_rate)}.
             </p>
           </>
         )}

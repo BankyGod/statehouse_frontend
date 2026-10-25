@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Bell } from 'lucide-react';
 import { activitiesApi } from '../api/endpoints';
-import { getErrorDetail } from '../api/client';
+import { ErrorNotice } from '../components/ErrorNotice';
 import { useToast } from '../context/ToastContext';
 
 export function ActivityPage() {
@@ -25,7 +25,7 @@ export function ActivityPage() {
       if (res.marked > 0) toast.push(`Marked ${res.marked} read.`, 'ok');
       await qc.invalidateQueries({ queryKey: ['activities'] });
     },
-    onError: (err) => toast.push(getErrorDetail(err), 'err'),
+    onError: (err) => toast.pushError(err),
   });
 
   return (
@@ -50,7 +50,7 @@ export function ActivityPage() {
           </button>
         </div>
         {notifQ.isLoading && <p className="muted">Loading…</p>}
-        {notifQ.isError && <p className="err-text">{getErrorDetail(notifQ.error)}</p>}
+        {notifQ.isError && <ErrorNotice error={notifQ.error} />}
         {!notifQ.data?.length && !notifQ.isLoading && <p className="muted">No notifications.</p>}
         <div className="play-list">
           {notifQ.data?.map((n) => (
@@ -75,7 +75,8 @@ export function ActivityPage() {
 
       <section className="play-section">
         <h2>Activity log</h2>
-        {!actQ.data?.length && <p className="muted">Nothing logged yet.</p>}
+        {actQ.isError && <ErrorNotice error={actQ.error} />}
+        {!actQ.data?.length && !actQ.isLoading && <p className="muted">Nothing logged yet.</p>}
         <div className="play-list">
           {actQ.data?.map((a, i) => (
             <article key={String(a.id ?? i)} className="play-row compact">

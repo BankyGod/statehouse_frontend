@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { BriefcaseBusiness, LogOut, UserPlus, UserX } from 'lucide-react';
 import { cabinetApi } from '../api/endpoints';
 import { useAuth } from '../context/AuthContext';
-import { getErrorDetail } from '../api/client';
+import { ErrorNotice } from '../components/ErrorNotice';
 import { useToast } from '../context/ToastContext';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { usePoliticalRoles } from '../hooks/usePoliticalRoles';
@@ -46,7 +46,7 @@ export function CabinetPage() {
       setCharacterId('');
       await refreshCabinet();
     },
-    onError: (err) => toast.push(getErrorDetail(err), 'err'),
+    onError: (err) => toast.pushError(err),
   });
 
   const dismissMut = useMutation({
@@ -56,7 +56,7 @@ export function CabinetPage() {
       setDismissTarget(null);
       await refreshCabinet();
     },
-    onError: (err) => toast.push(getErrorDetail(err), 'err'),
+    onError: (err) => toast.pushError(err),
   });
 
   const resignMut = useMutation({
@@ -66,7 +66,7 @@ export function CabinetPage() {
       setResignOpen(false);
       await refreshCabinet();
     },
-    onError: (err) => toast.push(getErrorDetail(err), 'err'),
+    onError: (err) => toast.pushError(err),
   });
 
   const seats = cabinetQ.data?.seats ?? [];
@@ -166,7 +166,7 @@ export function CabinetPage() {
       <section>
         <h2>Cabinet seats</h2>
         {cabinetQ.isLoading && <p>Loading…</p>}
-        {cabinetQ.isError && <p className="err-text">{getErrorDetail(cabinetQ.error)}</p>}
+        {cabinetQ.isError && <ErrorNotice error={cabinetQ.error} />}
         <div className="list-table">
           {seats.map((s) => (
             <div key={s.id} className="list-row">

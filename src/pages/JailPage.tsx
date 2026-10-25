@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Gavel, Skull } from 'lucide-react';
 import { jailApi } from '../api/endpoints';
 import { useAuth } from '../context/AuthContext';
-import { getErrorDetail } from '../api/client';
+import { ErrorNotice } from '../components/ErrorNotice';
 import { useToast } from '../context/ToastContext';
 import { money } from '../lib/format';
 import { Timer } from '../components/Timer';
@@ -24,9 +24,9 @@ export function JailPage() {
     onSuccess: async () => {
       toast.push('Bail paid. You are free.', 'ok');
       await qc.invalidateQueries({ queryKey: ['jail'] });
-      await refreshCharacter();
+      void refreshCharacter();
     },
-    onError: (err) => toast.push(getErrorDetail(err), 'err'),
+    onError: (err) => toast.pushError(err),
   });
 
   const status = jailQ.data;
@@ -42,7 +42,7 @@ export function JailPage() {
       </header>
 
       {jailQ.isLoading && <p className="muted">Checking…</p>}
-      {jailQ.isError && <p className="err-text">{getErrorDetail(jailQ.error)}</p>}
+      {jailQ.isError && <ErrorNotice error={jailQ.error} />}
 
       <section className={`play-hero ${jailed ? 'ready' : 'empty'}`}>
         <div className="play-hero-copy">
