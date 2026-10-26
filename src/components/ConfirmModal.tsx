@@ -7,6 +7,8 @@ type Props = {
   confirmLabel?: string;
   danger?: boolean;
   busy?: boolean;
+  /** Wider dialog (boarding-pass tickets, etc.). */
+  wide?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
 };
@@ -18,6 +20,7 @@ export function ConfirmModal({
   confirmLabel = 'Confirm',
   danger,
   busy,
+  wide,
   onConfirm,
   onCancel,
 }: Props) {
@@ -25,7 +28,7 @@ export function ConfirmModal({
   return (
     <div className="modal-backdrop" role="presentation" onClick={onCancel}>
       <div
-        className="modal"
+        className={`modal ${wide ? 'modal-wide' : ''}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby="modal-title"

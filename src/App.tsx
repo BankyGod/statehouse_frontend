@@ -27,6 +27,8 @@ import { NewsPage } from './pages/NewsPage';
 import { CabinetPage } from './pages/CabinetPage';
 import { PartiesPage } from './pages/PartiesPage';
 import { GovernmentPage } from './pages/GovernmentPage';
+import { EnterprisesPage } from './pages/EnterprisesPage';
+import { TreasuryPage } from './pages/TreasuryPage';
 import { ChatPage } from './pages/ChatPage';
 import { StocksPage } from './pages/StocksPage';
 import { GymPage } from './pages/GymPage';
@@ -86,6 +88,8 @@ export default function App() {
                   <Route path="/cabinet" element={<CabinetPage />} />
                   <Route path="/parties" element={<PartiesPage />} />
                   <Route path="/government" element={<GovernmentPage />} />
+                  <Route path="/enterprises" element={<EnterprisesPage />} />
+                  <Route path="/treasury" element={<TreasuryPage />} />
                   <Route path="/chat" element={<ChatPage />} />
                 </Route>
               </Route>

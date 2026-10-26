@@ -67,11 +67,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   });
 
   useEffect(() => {
-    if (userQuery.isError && token) {
+    // Only drop the session on auth failure — not on 5xx / network blips
+    if (!userQuery.isError || !token) return;
+    const status = (userQuery.error as { response?: { status?: number } })?.response
+      ?.status;
+    if (status === 401 || status === 403) {
       persist(null);
       qc.clear();
     }
-  }, [userQuery.isError, token, persist, qc]);
+  }, [userQuery.isError, userQuery.error, token, persist, qc]);
 
   const login = useCallback(
     async (username: string, password: string) => {

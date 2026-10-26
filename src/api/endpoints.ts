@@ -5,7 +5,9 @@ import type {
   BankSummary,
   BankTx,
   Business,
+  BusinessCatalog,
   BusinessCreate,
+  BusinessPreview,
   Character,
   CharacterCreate,
   CrimeCatalogItem,
@@ -14,8 +16,12 @@ import type {
   CrimeType,
   DmMessage,
   EducationCatalogItem,
+  EducationInstitution,
+  EducationProgram,
   EducationTrack,
   Employee,
+  StateEnterprise,
+  TravelOption,
   EmployeeRole,
   Enrollment,
   Faction,
@@ -62,6 +68,10 @@ import type {
   PoliticalParty,
   PartyMembership,
   GovernmentPost,
+  TreasuryDisburseResult,
+  TreasuryDonateResult,
+  TreasurySnapshot,
+  TreasuryTaxRates,
 } from '../types/api';
 
 export const authApi = {
@@ -139,9 +149,32 @@ export const jobsApi = {
 export const educationApi = {
   catalog: () =>
     api.get<EducationCatalogItem[]>('/api/education/catalog').then((r) => r.data),
-  enroll: (track: EducationTrack) =>
-    api.post<Enrollment>('/api/education/enroll', { track }).then((r) => r.data),
+  institutions: (params?: { state_id?: number; kind?: string }) =>
+    api
+      .get<{ institutions: EducationInstitution[] }>('/api/education/institutions', {
+        params,
+      })
+      .then((r) => r.data.institutions),
+  programs: (institution_id: number) =>
+    api
+      .get<{ programs: EducationProgram[] }>(
+        `/api/education/institutions/${institution_id}/programs`,
+      )
+      .then((r) => r.data.programs),
+  allPrograms: () =>
+    api
+      .get<{ programs: EducationProgram[] }>('/api/education/programs')
+      .then((r) => r.data.programs),
+  enroll: (body: { program_id: number } | { track: EducationTrack }) =>
+    api.post<Enrollment>('/api/education/enroll', body).then((r) => r.data),
   me: () => api.get<Enrollment[]>('/api/education/me').then((r) => r.data),
+};
+
+export const enterprisesApi = {
+  list: () =>
+    api
+      .get<{ enterprises: StateEnterprise[] }>('/api/enterprises')
+      .then((r) => r.data.enterprises),
 };
 
 export const permitsApi = {
@@ -151,6 +184,16 @@ export const permitsApi = {
 };
 
 export const businessesApi = {
+  catalog: () =>
+    api.get<BusinessCatalog>('/api/businesses/catalog').then((r) => r.data),
+  preview: (params: {
+    state_id: number;
+    entity_type: string;
+    starting_capital?: number;
+  }) =>
+    api
+      .get<BusinessPreview>('/api/businesses/preview', { params })
+      .then((r) => r.data),
   create: (body: BusinessCreate) =>
     api.post<Business>('/api/businesses', body).then((r) => r.data),
   me: () => api.get<Business[]>('/api/businesses/me').then((r) => r.data),
@@ -305,6 +348,21 @@ export const bankApi = {
       .then((r) => (Array.isArray(r.data) ? r.data : r.data ? [r.data] : [])),
 };
 
+export const treasuryApi = {
+  snapshot: (params?: { limit?: number }) =>
+    api.get<TreasurySnapshot>('/api/treasury', { params }).then((r) => r.data),
+  myRate: () => api.get<TreasuryTaxRates>('/api/treasury/my-rate').then((r) => r.data),
+  disburse: (body: {
+    amount: number;
+    reason: string;
+    to_character_id?: number;
+    to_display_name?: string;
+  }) =>
+    api.post<TreasuryDisburseResult>('/api/treasury/disburse', body).then((r) => r.data),
+  donate: (body: { amount: number; note?: string }) =>
+    api.post<TreasuryDonateResult>('/api/treasury/donate', body).then((r) => r.data),
+};
+
 export const stocksApi = {
   market: () => api.get<StockMarket>('/api/stocks/market').then((r) => r.data),
   portfolio: () => api.get<StockPortfolio>('/api/stocks/portfolio').then((r) => r.data),
@@ -342,10 +400,26 @@ export const stocksApi = {
 };
 
 export const travelApi = {
-  quote: (to_state_id: number) =>
-    api.post<TravelQuote>('/api/travel/quote', { to_state_id }).then((r) => r.data),
-  start: (to_state_id: number) =>
-    api.post<TravelStartResult>('/api/travel/start', { to_state_id }).then((r) => r.data),
+  options: (to_state_id: number) =>
+    api
+      .get<{ options: TravelOption[] }>('/api/travel/options', {
+        params: { to_state_id },
+      })
+      .then((r) => r.data.options),
+  quote: (to_state_id: number, carrier_id?: number) =>
+    api
+      .post<TravelQuote>('/api/travel/quote', {
+        to_state_id,
+        ...(carrier_id != null ? { carrier_id } : {}),
+      })
+      .then((r) => r.data),
+  start: (to_state_id: number, carrier_id?: number) =>
+    api
+      .post<TravelStartResult>('/api/travel/start', {
+        to_state_id,
+        ...(carrier_id != null ? { carrier_id } : {}),
+      })
+      .then((r) => r.data),
 };
 
 export const housingApi = {
@@ -441,10 +515,17 @@ export const newsApi = {
 
 export const cabinetApi = {
   list: () => api.get<Cabinet>('/api/cabinet').then((r) => r.data),
-  me: () => api.get<CabinetSeat | null>('/api/cabinet/me').then((r) => r.data),
-  appoint: (portfolio: string, character_id: number) =>
+  me: () =>
     api
-      .post<Record<string, unknown>>('/api/cabinet/appoint', { portfolio, character_id })
+      .get<{ seat: CabinetSeat | null }>('/api/cabinet/me')
+      .then((r) => r.data.seat),
+  appoint: (portfolio: string, username: string, character_id?: number) =>
+    api
+      .post<Record<string, unknown>>('/api/cabinet/appoint', {
+        portfolio,
+        username: username.trim(),
+        ...(character_id != null && character_id > 0 ? { character_id } : {}),
+      })
       .then((r) => r.data),
   dismiss: (portfolio: string) =>
     api

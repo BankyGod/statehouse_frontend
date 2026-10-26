@@ -368,6 +368,7 @@ export type CabinetSeat = {
   portfolio: string;
   title: string;
   character_id: number | null;
+  username?: string | null;
   name: string;
   is_npc: boolean;
   appointed_at: string | null;
@@ -477,6 +478,28 @@ export type TravelQuote = {
   cost: number;
   minutes: number;
   discounted_cost?: number | null;
+  carrier_id?: number | null;
+  carrier_name?: string | null;
+  mode?: string | null;
+  permit_applies?: boolean | null;
+};
+
+export type TravelOption = {
+  carrier_id: number;
+  carrier_slug: string;
+  carrier_name: string;
+  mode: 'air' | 'rail' | 'bus' | string;
+  ownership: 'government' | 'private' | string;
+  tagline: string;
+  comfort: number;
+  reliability: number;
+  cost: number;
+  minutes: number;
+  discounted_cost: number | null;
+  permit_applies: boolean;
+  to_state_id: number;
+  to_state_name: string;
+  from_state_id: number;
 };
 
 export type TravelStartResult = {
@@ -485,6 +508,9 @@ export type TravelStartResult = {
   minutes?: number;
   travel_until?: string;
   destination_id?: number;
+  carrier_id?: number | null;
+  carrier_name?: string | null;
+  mode?: string | null;
   [key: string]: unknown;
 };
 
@@ -566,6 +592,37 @@ export type EducationCatalogItem = {
   level: number;
 };
 
+export type EducationInstitution = {
+  id: number;
+  slug: string;
+  name: string;
+  kind: string;
+  ownership: 'government' | 'private' | string;
+  state_id: number;
+  state_name: string | null;
+  state_slug: string | null;
+  enterprise_id: number | null;
+  prestige: number;
+  description: string | null;
+  is_open: boolean;
+};
+
+export type EducationProgram = {
+  id: number;
+  institution_id: number;
+  institution_name?: string;
+  institution_ownership?: string;
+  state_id?: number;
+  track: EducationTrack | string;
+  title: string;
+  real_days: number;
+  age_years: number;
+  cost: number;
+  level: number;
+  min_education_level: number;
+  capacity?: number | null;
+};
+
 export type Enrollment = {
   id: number;
   track: EducationTrack;
@@ -574,9 +631,28 @@ export type Enrollment = {
   cost_paid: number;
   age_gain_years: number;
   education_level: number;
+  institution_id?: number | null;
+  program_id?: number | null;
+  institution_name?: string | null;
+  institution_slug?: string | null;
+  institution_kind?: string | null;
+  institution_ownership?: string | null;
   started_at: string;
   completes_at: string;
   completed_at: string | null;
+};
+
+export type StateEnterprise = {
+  id: number;
+  slug: string;
+  name: string;
+  kind: string;
+  portfolio: string;
+  description: string | null;
+  home_state_id: number | null;
+  stock_symbol: string | null;
+  ownership: string;
+  is_active: boolean;
 };
 
 export type Permit = {
@@ -589,10 +665,49 @@ export type Permit = {
   expires_at: string | null;
 };
 
+export type BusinessEntityType = 'sole_trader' | 'partnership' | 'limited_company';
+
+export type BusinessSectorOption = {
+  value: string;
+  label: string;
+  group: string;
+};
+
+export type BusinessEntityOption = {
+  value: BusinessEntityType | string;
+  label: string;
+  registration_fee: number;
+  blurb: string;
+};
+
+export type BusinessCatalog = {
+  sectors: BusinessSectorOption[];
+  entity_types: BusinessEntityOption[];
+  registration_hours: number;
+  min_starting_capital: number;
+  max_starting_capital: number;
+};
+
+export type BusinessPreview = {
+  state_id: number;
+  state_name: string;
+  is_home_state: boolean;
+  permit_required: boolean;
+  permit_ok: boolean;
+  entity_type: string;
+  registration_fee: number;
+  starting_capital: number;
+  total_due: number;
+  registration_hours: number;
+  cash_on_hand: number;
+  can_afford: boolean;
+};
+
 export type Business = {
   id: number;
   name: string;
   sector: string;
+  entity_type?: string;
   state_id: number;
   status: string;
   cash_balance: number;
@@ -613,6 +728,8 @@ export type BusinessCreate = {
   state_id: number;
   local_address: string;
   description?: string | null;
+  entity_type?: BusinessEntityType | string;
+  starting_capital?: number;
 };
 
 export type CrimeCatalogItem = {
@@ -696,4 +813,56 @@ export type ChatMessage = {
   display_name: string;
   body: string;
   posted_at: string;
+};
+
+export type TreasuryTx = {
+  id: number;
+  tx_type: string;
+  amount: number;
+  balance_after: number;
+  character_id: number | null;
+  business_id: number | null;
+  note: string | null;
+  posted_at: string;
+};
+
+export type TreasurySnapshot = {
+  account_name: string;
+  balance: number;
+  national_tax_rate: number;
+  corporate_tax_rate: number;
+  your_access: {
+    can_view: boolean;
+    can_spend: boolean;
+    roles: string[];
+  };
+  spend_rules: {
+    who: string;
+    max_per_transfer: number;
+    note: string;
+  };
+  transactions: TreasuryTx[];
+};
+
+export type TreasuryTaxRates = {
+  income_tax_rate: number;
+  corporate_tax_rate: number;
+  national_tax_rate: number;
+  can_view_treasury: boolean;
+  can_spend_treasury: boolean;
+};
+
+export type TreasuryDisburseResult = {
+  disbursed: number;
+  to_character_id: number;
+  to_display_name: string;
+  reason: string;
+  treasury_balance: number;
+  authorized_by: string;
+};
+
+export type TreasuryDonateResult = {
+  donated: number;
+  treasury_balance: number;
+  cash: number;
 };

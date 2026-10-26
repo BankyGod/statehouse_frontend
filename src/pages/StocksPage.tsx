@@ -197,14 +197,12 @@ export function StocksPage() {
   }
 
   return (
-    <div>
-      <header className="page-header">
+    <div className="stocks-page">
+      <header className="page-header compact">
         <h1>
-          <CandlestickChart size={26} aria-hidden /> Stocks
+          <CandlestickChart size={22} aria-hidden /> Stocks
         </h1>
-        <p className="lede">
-          Live chart + searchable market board. Select a ticker, then buy or sell below the chart.
-        </p>
+        <p className="lede">Select a ticker, trade below the chart, browse the full market.</p>
       </header>
 
       <div className="stocks-board">
@@ -242,30 +240,32 @@ export function StocksPage() {
                   disabled={locked}
                 />
               </label>
-              <button
-                type="button"
-                className="btn primary sm"
-                disabled={locked || buyMut.isPending}
-                onClick={() => {
-                  const n = parseQty();
-                  if (n == null) return toast.push('Enter shares.', 'err');
-                  buyMut.mutate({ id: selected.id, shares: n });
-                }}
-              >
-                Buy
-              </button>
-              <button
-                type="button"
-                className="btn danger sm"
-                disabled={locked || sellMut.isPending || !heldSelected}
-                onClick={() => {
-                  const n = parseQty();
-                  if (n == null) return toast.push('Enter shares.', 'err');
-                  sellMut.mutate({ id: selected.id, shares: n });
-                }}
-              >
-                Sell
-              </button>
+              <div className="stock-trade-actions">
+                <button
+                  type="button"
+                  className="btn primary sm"
+                  disabled={locked || buyMut.isPending}
+                  onClick={() => {
+                    const n = parseQty();
+                    if (n == null) return toast.push('Enter shares.', 'err');
+                    buyMut.mutate({ id: selected.id, shares: n });
+                  }}
+                >
+                  Buy
+                </button>
+                <button
+                  type="button"
+                  className="btn danger sm"
+                  disabled={locked || sellMut.isPending || !heldSelected}
+                  onClick={() => {
+                    const n = parseQty();
+                    if (n == null) return toast.push('Enter shares.', 'err');
+                    sellMut.mutate({ id: selected.id, shares: n });
+                  }}
+                >
+                  Sell
+                </button>
+              </div>
             </div>
           )}
         </div>
@@ -373,7 +373,7 @@ export function StocksPage() {
           <p className="muted">No listings match that filter.</p>
         )}
 
-        <div className="stock-table-wrap">
+        <div className="stock-table-wrap stock-table-desktop">
           <table className="stock-table">
             <thead>
               <tr>
@@ -413,6 +413,35 @@ export function StocksPage() {
               })}
             </tbody>
           </table>
+        </div>
+
+        <div className="stock-mobile-list">
+          {filtered.map((l) => {
+            const d = deltaFor(l.id, l.share_price);
+            const held = heldByListing.get(l.id)?.shares;
+            return (
+              <button
+                key={l.id}
+                type="button"
+                className={`stock-mobile-row ${l.id === selectedId ? 'active' : ''}`}
+                onClick={() => setSelectedId(l.id)}
+              >
+                <div className="stock-mobile-main">
+                  <strong>{l.symbol}</strong>
+                  {l.is_booming && <span className="badge active">Hot</span>}
+                  {held != null && <span className="badge">×{held}</span>}
+                  <span className="muted sm">{l.name}</span>
+                </div>
+                <div className="stock-mobile-meta">
+                  <span className="num">{money(l.share_price)}</span>
+                  <span className={`num sm ${d >= 0 ? 'cash' : 'danger-text'}`}>
+                    {d >= 0 ? '+' : ''}
+                    {d.toFixed(2)}
+                  </span>
+                </div>
+              </button>
+            );
+          })}
         </div>
       </section>
 

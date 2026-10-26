@@ -19,6 +19,7 @@ export function CabinetPage() {
     !!character?.is_jailed || !!character?.is_traveling || !!character?.is_hospitalized;
 
   const [portfolio, setPortfolio] = useState('finance');
+  const [username, setUsername] = useState('');
   const [characterId, setCharacterId] = useState('');
   const [dismissTarget, setDismissTarget] = useState<CabinetSeat | null>(null);
   const [resignOpen, setResignOpen] = useState(false);
@@ -40,9 +41,18 @@ export function CabinetPage() {
   }
 
   const appointMut = useMutation({
-    mutationFn: () => cabinetApi.appoint(portfolio, Number(characterId)),
+    mutationFn: () => {
+      const idRaw = characterId.trim();
+      const id = idRaw ? Number(idRaw) : undefined;
+      return cabinetApi.appoint(
+        portfolio,
+        username.trim(),
+        id != null && Number.isFinite(id) && id > 0 ? id : undefined,
+      );
+    },
     onSuccess: async (res) => {
       toast.push(typeof res.message === 'string' ? res.message : 'Minister appointed.', 'ok');
+      setUsername('');
       setCharacterId('');
       await refreshCabinet();
     },
@@ -75,10 +85,17 @@ export function CabinetPage() {
 
   function onAppoint(e: FormEvent) {
     e.preventDefault();
-    const id = Number(characterId);
-    if (!Number.isFinite(id) || id <= 0) {
-      toast.push('Enter a valid character id.', 'err');
+    if (!username.trim()) {
+      toast.push('Enter the player username.', 'err');
       return;
+    }
+    const idRaw = characterId.trim();
+    if (idRaw) {
+      const id = Number(idRaw);
+      if (!Number.isFinite(id) || id <= 0) {
+        toast.push('Character id must be a positive number (or leave blank).', 'err');
+        return;
+      }
     }
     appointMut.mutate();
   }
@@ -126,6 +143,10 @@ export function CabinetPage() {
           <h2>
             <UserPlus size={18} aria-hidden /> Appoint minister
           </h2>
+          <p className="muted">
+            Appoint by <strong>username</strong> (login name). Optional character id must match
+            that account. Replaces the current NPC or player — no dismiss needed for NPCs.
+          </p>
           <form className="inline-form" onSubmit={onAppoint}>
             <label>
               Portfolio
@@ -142,14 +163,25 @@ export function CabinetPage() {
               </select>
             </label>
             <label>
+              Username
+              <input
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                required
+                disabled={locked}
+                autoComplete="off"
+                placeholder="player login"
+              />
+            </label>
+            <label>
               Character id
               <input
                 type="number"
                 min={1}
                 value={characterId}
                 onChange={(e) => setCharacterId(e.target.value)}
-                required
                 disabled={locked}
+                placeholder="optional · must match"
               />
             </label>
             <button
@@ -179,11 +211,12 @@ export function CabinetPage() {
                 </strong>
                 <p className="muted">
                   {s.name}
+                  {s.username ? ` · @${s.username}` : ''}
                   {s.character_id != null ? ` · char #${s.character_id}` : ''} ·{' '}
                   <code>{s.portfolio}</code>
                 </p>
               </div>
-              {isPresident && (
+              {isPresident && !s.is_npc && (
                 <button
                   type="button"
                   className="btn danger sm"

@@ -1,4 +1,10 @@
-import { useMemo, useState } from 'react';
+import {
+  Children,
+  useMemo,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from 'react';
 import { Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -26,8 +32,10 @@ import {
 } from '../api/endpoints';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import { useJobListing } from '../hooks/useJobDetails';
 import { usePoliticalRoles } from '../hooks/usePoliticalRoles';
 import { canResetHome, money, num } from '../lib/format';
+import { certCssVars, institutionTheme } from '../lib/institutionTheme';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { StateCard } from '../components/StateCard';
 import { CardCarousel } from '../components/CardCarousel';
@@ -63,6 +71,7 @@ export function ProfilePage() {
     queryKey: ['jobs', 'me'],
     queryFn: () => jobsApi.me(),
   });
+  const { listing: jobListing } = useJobListing(jobQ.data);
   const bizQ = useQuery({
     queryKey: ['businesses', 'me'],
     queryFn: () => businessesApi.me(),
@@ -100,7 +109,16 @@ export function ProfilePage() {
   const completedEdu =
     eduQ.data?.filter((e) => e.status === 'completed' || e.completed_at) ?? [];
   const activeEdu =
-    eduQ.data?.filter((e) => e.status === 'in_progress' || e.status === 'active') ?? [];
+    eduQ.data?.filter(
+      (e) =>
+        e.status === 'enrolled' ||
+        e.status === 'in_progress' ||
+        e.status === 'active',
+    ) ?? [];
+  const academicCerts = [
+    ...completedEdu.map((e) => ({ e, provisional: false })),
+    ...activeEdu.map((e) => ({ e, provisional: true })),
+  ];
   const activePermits =
     permitsQ.data?.filter((p) => p.status === 'issued' || p.status === 'active') ?? [];
   const pendingPermits =
@@ -118,7 +136,12 @@ export function ProfilePage() {
         <p className="lede">Official papers issued in United Amir.</p>
       </header>
 
-      <div className="wallet-grid">
+      <section className="doc-section" aria-labelledby="wallet-cards-heading">
+        <header className="doc-section-head">
+          <h2 id="wallet-cards-heading">Wallet cards</h2>
+          <p>ID, bank, permits, and credentials you carry day to day.</p>
+        </header>
+        <div className="wallet-grid">
         {/* —— National ID (ISO ID-1) —— */}
         <article className="rw-card id-card">
           <div className="rw-guilloche" aria-hidden />
@@ -217,32 +240,6 @@ export function ProfilePage() {
         </article>
 
         <CardCarousel
-          label="Certificates"
-          empty={
-            <EmptyDoc
-              title="School Certificate"
-              org="Education Board"
-              note="Finish a diploma or short course to receive your school certificate."
-              Icon={GraduationCap}
-            />
-          }
-        >
-          {[
-            ...completedEdu.map((e) => (
-              <CertificateCard key={e.id} enrollment={e} holder={character.display_name} />
-            )),
-            ...activeEdu.map((e) => (
-              <CertificateCard
-                key={`p-${e.id}`}
-                enrollment={e}
-                holder={character.display_name}
-                provisional
-              />
-            )),
-          ]}
-        </CardCarousel>
-
-        <CardCarousel
           label="Permits"
           empty={
             <EmptyDoc
@@ -329,7 +326,14 @@ export function ProfilePage() {
             </div>
             <div className="doc-grid">
               <Field label="Employee" value={character.display_name} wide />
-              <Field label="Listing" value={`#${jobQ.data.listing_id}`} />
+              <Field
+                label="Position"
+                value={jobListing?.title ?? `Listing #${jobQ.data.listing_id}`}
+              />
+              <Field
+                label="Sector"
+                value={jobListing?.sector ?? `State #${jobQ.data.state_id}`}
+              />
               <Field label="Shifts completed" value={String(jobQ.data.shifts_completed)} />
               <Field label="Status" value={jobQ.data.is_active ? 'ACTIVE' : 'INACTIVE'} />
             </div>
@@ -340,9 +344,29 @@ export function ProfilePage() {
             </div>
           </article>
         )}
+        </div>
+      </section>
 
-        {businesses.length > 0 && (
-          <CardCarousel label="Businesses">
+      <section className="doc-section" aria-labelledby="certificates-heading">
+        <header className="doc-section-head">
+          <h2 id="certificates-heading">
+            <GraduationCap size={18} aria-hidden /> Certificates
+          </h2>
+          <p>School awards and company registrations — parchment, not wallet plastic.</p>
+        </header>
+
+        <div className="cert-gallery">
+          <CertGroup label="Academic certificates">
+            {academicCerts.map(({ e, provisional }) => (
+              <CertificateCard
+                key={provisional ? `p-${e.id}` : e.id}
+                enrollment={e}
+                holder={character.display_name}
+                provisional={provisional}
+              />
+            ))}
+          </CertGroup>
+          <CertGroup label="Incorporation certificates">
             {businesses.map((b) => (
               <article key={b.id} className={`rw-card business-card ${b.status}`}>
                 <div className="cert-ornament" aria-hidden />
@@ -369,9 +393,17 @@ export function ProfilePage() {
                 </div>
               </article>
             ))}
-          </CardCarousel>
-        )}
-      </div>
+          </CertGroup>
+          {academicCerts.length === 0 && businesses.length === 0 && (
+            <EmptyDoc
+              title="No certificates yet"
+              org="Registry"
+              note="Finish a course for an academic certificate, or register a company for incorporation papers."
+              Icon={GraduationCap}
+            />
+          )}
+        </div>
+      </section>
 
       <header className="page-header compact profile-dossier-head">
         <h2>
@@ -586,7 +618,7 @@ export function ProfilePage() {
                     '…'
                   ) : jobQ.data ? (
                     <>
-                      Job #{jobQ.data.listing_id}
+                      <Link to="/jobs">{jobListing?.title ?? `Job #${jobQ.data.listing_id}`}</Link>
                       <span className="muted"> · {jobQ.data.shifts_completed} shifts</span>
                       {!jobQ.data.is_active && <span className="badge warn">Inactive</span>}
                     </>
@@ -807,6 +839,19 @@ function Field({
   );
 }
 
+function CertGroup({ label, children }: { label: string; children: ReactNode }) {
+  const slides = Children.toArray(children).filter(Boolean);
+  if (slides.length === 0) return null;
+  if (slides.length === 1) {
+    return <div className="cert-group single">{slides[0]}</div>;
+  }
+  return (
+    <div className="cert-group multi">
+      <CardCarousel label={label}>{slides}</CardCarousel>
+    </div>
+  );
+}
+
 function EmptyDoc({
   title,
   org,
@@ -839,27 +884,38 @@ function CertificateCard({
   holder: string;
   provisional?: boolean;
 }) {
-  const school = isSchoolCert(enrollment.track);
+  const theme = institutionTheme(
+    enrollment.institution_slug,
+    enrollment.institution_kind,
+    enrollment.institution_name,
+  );
+  const schoolName =
+    enrollment.institution_name?.trim() || 'Ministry of Higher Education';
+  const courseTitle = enrollment.title.includes(' — ')
+    ? enrollment.title.split(' — ')[0]
+    : enrollment.title;
   const date = provisional
     ? new Date(enrollment.completes_at)
     : new Date(enrollment.completed_at ?? enrollment.completes_at);
 
   return (
     <article
-      className={`rw-card cert-card ${school ? 'school' : 'degree'} ${provisional ? 'provisional' : ''}`}
+      className={`rw-card cert-card themed degree cert-inst-${theme.slug} ${provisional ? 'provisional' : ''}`}
+      style={certCssVars(theme) as CSSProperties}
     >
       <div className="cert-border" aria-hidden />
       <div className="cert-watermark" aria-hidden>
-        UA
+        {theme.mark}
       </div>
-      <p className="cert-org">
-        {school
-          ? 'UNITED AMIR EDUCATION BOARD'
-          : 'MINISTRY OF HIGHER EDUCATION · UNITED AMIR'}
+      <p className="cert-org">{schoolName.toUpperCase()}</p>
+      <p className="cert-org-sub">
+        {theme.shortName}
+        {enrollment.institution_kind
+          ? ` · ${enrollment.institution_kind.replaceAll('_', ' ')}`
+          : ''}
+        {' · United Amir'}
       </p>
-      <h2 className="cert-heading">
-        {school ? 'School Certificate' : 'Academic Certificate'}
-      </h2>
+      <h2 className="cert-heading">Academic Certificate</h2>
       <p className="cert-line">
         {provisional
           ? 'This provisional record confirms that'
@@ -871,7 +927,10 @@ function CertificateCard({
           ? 'is duly enrolled for and pursuing'
           : 'has duly completed the prescribed course of study in'}
       </p>
-      <p className="cert-course">{enrollment.title}</p>
+      <p className="cert-course">{courseTitle}</p>
+      <p className="cert-school-line">
+        at <strong>{schoolName}</strong>
+      </p>
       <div className="cert-meta">
         <span>Track: {enrollment.track.replaceAll('_', ' ')}</span>
         <span>Level {enrollment.education_level}</span>
@@ -883,15 +942,15 @@ function CertificateCard({
       <div className="cert-signs">
         <div>
           <span className="id-sign-ink">Registrar</span>
-          <em>Academic Board</em>
+          <em>{theme.shortName}</em>
         </div>
         <div className="cert-seal-stamp" aria-hidden>
           <GraduationCap size={22} />
-          <small>{provisional ? 'PROV' : 'AWARD'}</small>
+          <small>{provisional ? 'PROV' : theme.mark}</small>
         </div>
         <div>
-          <span className="id-sign-ink auth">Director</span>
-          <em>Ministry Seal</em>
+          <span className="id-sign-ink auth">Chancellor</span>
+          <em>Institution Seal</em>
         </div>
       </div>
       <p className="doc-serial mono">
@@ -951,10 +1010,6 @@ function PermitCard({
       <p className="doc-serial mono">P-{permit.id.toString().padStart(5, '0')}</p>
     </article>
   );
-}
-
-function isSchoolCert(track: Enrollment['track']) {
-  return track === 'short_course' || track === 'diploma';
 }
 
 function permitMeta(type: PermitType) {

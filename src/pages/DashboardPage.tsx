@@ -6,6 +6,7 @@ import {
   BriefcaseBusiness,
   Building,
   Building2,
+  Factory,
   Flag,
   CandlestickChart,
   Dumbbell,
@@ -30,6 +31,7 @@ import {
 import type { LucideIcon } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { educationApi, jobsApi, newsApi, statesApi } from '../api/endpoints';
+import { useJobListing } from '../hooks/useJobDetails';
 import { money } from '../lib/format';
 import { Timer } from '../components/Timer';
 
@@ -61,6 +63,7 @@ export function DashboardPage() {
     queryKey: ['jobs', 'me'],
     queryFn: () => jobsApi.me(),
   });
+  const { listing: jobListing } = useJobListing(jobQ.data);
 
   const eduQ = useQuery({
     queryKey: ['education', 'me'],
@@ -74,7 +77,9 @@ export function DashboardPage() {
     refetchInterval: 60_000,
   });
 
-  const activeEdu = eduQ.data?.find((e) => e.status === 'in_progress' || e.status === 'active');
+  const activeEdu = eduQ.data?.find(
+    (e) => e.status === 'enrolled' || e.status === 'in_progress' || e.status === 'active',
+  );
 
   const menuGroups: MenuGroup[] = [
     {
@@ -122,6 +127,19 @@ export function DashboardPage() {
           hint: 'Gov posts',
           Icon: Building,
           locked,
+        },
+        {
+          to: '/treasury',
+          label: 'Treasury',
+          hint: 'Tax & public purse',
+          Icon: Landmark,
+          locked,
+        },
+        {
+          to: '/enterprises',
+          label: 'Enterprises',
+          hint: 'Rail · energy · ports',
+          Icon: Factory,
         },
         { to: '/legislation', label: 'Laws', hint: 'Bills & budget', Icon: ScrollText, locked },
         { to: '/permits', label: 'Permits', hint: 'Licenses', Icon: FileBadge, locked },
@@ -173,7 +191,15 @@ export function DashboardPage() {
                   {jobQ.isLoading
                     ? '…'
                     : jobQ.data
-                      ? `#${jobQ.data.listing_id} · ${jobQ.data.shifts_completed} shifts`
+                      ? (
+                          <Link to="/jobs">
+                            {jobListing?.title ?? `Job #${jobQ.data.listing_id}`}
+                            <span className="muted">
+                              {' '}
+                              · {jobQ.data.shifts_completed} shifts
+                            </span>
+                          </Link>
+                        )
                       : (
                           <Link to="/jobs">Unemployed</Link>
                         )}

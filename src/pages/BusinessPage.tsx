@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Building2 } from 'lucide-react';
 import { businessesApi, statesApi } from '../api/endpoints';
@@ -8,9 +8,75 @@ import { Timer } from '../components/Timer';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { money } from '../lib/format';
-import type { Business, EmployeeRole } from '../types/api';
+import type {
+  Business,
+  BusinessCatalog,
+  BusinessSectorOption,
+  EmployeeRole,
+} from '../types/api';
 
 const ROLES: EmployeeRole[] = ['labourer', 'clerk', 'specialist', 'manager', 'executive'];
+
+/** Mirrors BE `SECTOR_CATALOG` / `ENTITY_TYPE_CATALOG` so selects are never empty. */
+const FALLBACK_CATALOG: BusinessCatalog = {
+  sectors: [
+    { value: 'retail', label: 'Retail', group: 'Trade & services' },
+    { value: 'wholesale', label: 'Wholesale', group: 'Trade & services' },
+    { value: 'food_beverage', label: 'Food & beverage', group: 'Trade & services' },
+    { value: 'hospitality', label: 'Hospitality / hotels', group: 'Trade & services' },
+    { value: 'personal_services', label: 'Personal services', group: 'Trade & services' },
+    { value: 'manufacturing', label: 'Manufacturing', group: 'Industry' },
+    { value: 'construction', label: 'Construction', group: 'Industry' },
+    { value: 'mining', label: 'Mining', group: 'Industry' },
+    { value: 'agriculture', label: 'Agriculture / agribusiness', group: 'Industry' },
+    { value: 'energy', label: 'Energy / utilities (private)', group: 'Industry' },
+    { value: 'trucking', label: 'Trucking / haulage', group: 'Transport & logistics' },
+    { value: 'shipping', label: 'Shipping / freight', group: 'Transport & logistics' },
+    { value: 'warehousing', label: 'Warehousing', group: 'Transport & logistics' },
+    { value: 'tech', label: 'Tech / software', group: 'Knowledge' },
+    { value: 'media', label: 'Media / publishing', group: 'Knowledge' },
+    { value: 'private_education', label: 'Education (private)', group: 'Knowledge' },
+    { value: 'private_healthcare', label: 'Healthcare (private clinic)', group: 'Knowledge' },
+    { value: 'legal', label: 'Legal practice', group: 'Professional' },
+    { value: 'accounting', label: 'Accounting / finance services', group: 'Professional' },
+    { value: 'real_estate', label: 'Real estate / property', group: 'Professional' },
+    { value: 'private_security', label: 'Private security', group: 'Security' },
+    { value: 'other', label: 'General / other', group: 'Other' },
+  ],
+  entity_types: [
+    {
+      value: 'sole_trader',
+      label: 'Sole trader',
+      registration_fee: 100,
+      blurb: 'You alone - cheapest registration.',
+    },
+    {
+      value: 'partnership',
+      label: 'Partnership',
+      registration_fee: 150,
+      blurb: 'Shared ownership; standard fee.',
+    },
+    {
+      value: 'limited_company',
+      label: 'Limited company',
+      registration_fee: 250,
+      blurb: 'Separate legal entity; best for later IPO.',
+    },
+  ],
+  registration_hours: 12,
+  min_starting_capital: 0,
+  max_starting_capital: 50000,
+};
+
+function groupSectors(sectors: BusinessSectorOption[]) {
+  const groups: { group: string; items: BusinessSectorOption[] }[] = [];
+  for (const s of sectors) {
+    const last = groups[groups.length - 1];
+    if (last && last.group === s.group) last.items.push(s);
+    else groups.push({ group: s.group, items: [s] });
+  }
+  return groups;
+}
 
 export function BusinessPage() {
   const { character, refreshCharacter } = useAuth();
@@ -19,7 +85,10 @@ export function BusinessPage() {
   const locked = !!character?.is_jailed || !!character?.is_traveling || !!character?.is_hospitalized;
 
   const [name, setName] = useState('');
-  const [sector, setSector] = useState('trade');
+  const [sector, setSector] = useState('retail');
+  const [entityType, setEntityType] = useState('sole_trader');
+  const [startingCapital, setStartingCapital] = useState('0');
+  const [acknowledged, setAcknowledged] = useState(false);
   const [stateId, setStateId] = useState<number | ''>(character?.home_state_id ?? '');
   const [address, setAddress] = useState('');
   const [description, setDescription] = useState('');
@@ -33,6 +102,29 @@ export function BusinessPage() {
   const statesQ = useQuery({
     queryKey: ['states'],
     queryFn: () => statesApi.list(),
+  });
+
+  const catalogQ = useQuery({
+    queryKey: ['businesses', 'catalog'],
+    queryFn: () => businessesApi.catalog(),
+    staleTime: 60_000,
+  });
+
+  const catalog = catalogQ.data ?? FALLBACK_CATALOG;
+  const sectorGroups = groupSectors(catalog.sectors);
+  const entityBlurb = catalog.entity_types.find((t) => t.value === entityType)?.blurb;
+
+  const capitalNum = Number(startingCapital) || 0;
+
+  const previewQ = useQuery({
+    queryKey: ['businesses', 'preview', stateId, entityType, capitalNum],
+    queryFn: () =>
+      businessesApi.preview({
+        state_id: Number(stateId),
+        entity_type: entityType,
+        starting_capital: capitalNum,
+      }),
+    enabled: typeof stateId === 'number' && stateId > 0,
   });
 
   const meQ = useQuery({
@@ -53,7 +145,9 @@ export function BusinessPage() {
     mutationFn: () =>
       businessesApi.create({
         name: name.trim(),
-        sector: sector.trim(),
+        sector,
+        entity_type: entityType,
+        starting_capital: capitalNum,
         state_id: Number(stateId),
         local_address: address.trim(),
         description: description.trim() || null,
@@ -63,6 +157,8 @@ export function BusinessPage() {
       setName('');
       setAddress('');
       setDescription('');
+      setStartingCapital('0');
+      setAcknowledged(false);
       setSelectedId(b.id);
       await qc.invalidateQueries({ queryKey: ['businesses'] });
       void refreshCharacter();
@@ -127,15 +223,6 @@ export function BusinessPage() {
     onError: (err) => toast.pushError(err),
   });
 
-  function onSubmit(e: FormEvent) {
-    e.preventDefault();
-    if (stateId === '') {
-      toast.push('Pick a state.', 'err');
-      return;
-    }
-    createMut.mutate();
-  }
-
   function parseAmt(): number | null {
     const n = Number(cashAmt);
     if (!Number.isFinite(n) || n <= 0) return null;
@@ -159,17 +246,54 @@ export function BusinessPage() {
 
       <section className="panel">
         <h2>Register</h2>
-        <form className="stack-form" onSubmit={onSubmit}>
+        {catalogQ.isError && <ErrorNotice error={catalogQ.error} />}
+        {statesQ.isError && <ErrorNotice error={statesQ.error} />}
+        <form
+          className="stack-form"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!acknowledged) {
+              toast.push('Confirm you understand the registration terms.', 'err');
+              return;
+            }
+            if (previewQ.data && !previewQ.data.permit_ok) {
+              toast.push('Get a business permit for that state first.', 'err');
+              return;
+            }
+            createMut.mutate();
+          }}
+        >
           <label>
-            Name
+            Business name
             <input value={name} onChange={(e) => setName(e.target.value)} minLength={2} required />
           </label>
           <label>
             Sector
-            <input value={sector} onChange={(e) => setSector(e.target.value)} minLength={2} required />
+            <select value={sector} onChange={(e) => setSector(e.target.value)} required>
+              {sectorGroups.map((g) => (
+                <optgroup key={g.group} label={g.group}>
+                  {g.items.map((s) => (
+                    <option key={s.value} value={s.value}>
+                      {s.label}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
           </label>
           <label>
-            State
+            Business type
+            <select value={entityType} onChange={(e) => setEntityType(e.target.value)} required>
+              {catalog.entity_types.map((t) => (
+                <option key={t.value} value={t.value}>
+                  {t.label} · fee {money(t.registration_fee)}
+                </option>
+              ))}
+            </select>
+          </label>
+          {entityBlurb && <p className="muted">{entityBlurb}</p>}
+          <label>
+            State of registration
             <select
               value={stateId}
               onChange={(e) => setStateId(e.target.value ? Number(e.target.value) : '')}
@@ -194,10 +318,88 @@ export function BusinessPage() {
             />
           </label>
           <label>
+            Starting capital
+            <input
+              type="number"
+              min={catalog.min_starting_capital}
+              max={catalog.max_starting_capital}
+              step={1}
+              value={startingCapital}
+              onChange={(e) => setStartingCapital(e.target.value)}
+            />
+          </label>
+          <p className="muted">Seeded into the company treasury (paid from your cash with the fee).</p>
+          <label>
             Description <span className="muted">(optional)</span>
             <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} />
           </label>
-          <button type="submit" className="btn primary" disabled={locked || createMut.isPending}>
+
+          {previewQ.data && (
+            <div className="quote-box">
+              <ul className="kv">
+                <li>
+                  <span>State</span>
+                  <strong>{previewQ.data.state_name}</strong>
+                </li>
+                <li>
+                  <span>Registration fee</span>
+                  <strong className="cash">{money(previewQ.data.registration_fee)}</strong>
+                </li>
+                <li>
+                  <span>Starting capital</span>
+                  <strong className="cash">{money(previewQ.data.starting_capital)}</strong>
+                </li>
+                <li>
+                  <span>Total due</span>
+                  <strong className="cash">{money(previewQ.data.total_due)}</strong>
+                </li>
+                <li>
+                  <span>Active in</span>
+                  <strong>~{previewQ.data.registration_hours} hours</strong>
+                </li>
+                <li>
+                  <span>Your cash</span>
+                  <strong className="cash">{money(previewQ.data.cash_on_hand)}</strong>
+                </li>
+              </ul>
+              {previewQ.data.permit_required && (
+                <p className={previewQ.data.permit_ok ? 'muted' : 'warn'}>
+                  {previewQ.data.permit_ok
+                    ? 'Business permit for this state: OK'
+                    : 'Business permit required for this non-home state — apply under Permits first.'}
+                </p>
+              )}
+              {!previewQ.data.can_afford && (
+                <p className="warn">Not enough cash for fee + capital.</p>
+              )}
+            </div>
+          )}
+
+          <label className="check-row">
+            <input
+              type="checkbox"
+              checked={acknowledged}
+              onChange={(e) => setAcknowledged(e.target.checked)}
+            />
+            <span>
+              I understand this company will be registered in{' '}
+              <strong>
+                {previewQ.data?.state_name ?? 'the selected state'}
+              </strong>{' '}
+              as a <strong>{entityType.replaceAll('_', ' ')}</strong>.
+            </span>
+          </label>
+
+          <button
+            type="submit"
+            className="btn primary"
+            disabled={
+              locked ||
+              createMut.isPending ||
+              !acknowledged ||
+              (previewQ.data != null && (!previewQ.data.can_afford || !previewQ.data.permit_ok))
+            }
+          >
             {createMut.isPending ? 'Registering…' : 'Register business'}
           </button>
         </form>
@@ -413,7 +615,9 @@ function BusinessPick({
           <span className={`badge ${b.status}`}>{b.status}</span>
         </div>
         <p className="muted play-row-desc">
-          {b.sector} · {stateLabel} · {b.local_address}
+          {b.sector.replaceAll('_', ' ')}
+          {b.entity_type ? ` · ${b.entity_type.replaceAll('_', ' ')}` : ''} · {stateLabel} ·{' '}
+          {b.local_address}
         </p>
         <div className="play-row-meta">
           <span className="cash">{money(b.cash_balance)}</span>
