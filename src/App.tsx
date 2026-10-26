@@ -11,7 +11,10 @@ import { CreateCharacterPage } from './pages/CreateCharacterPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { JobsPage } from './pages/JobsPage';
 import { EducationPage } from './pages/EducationPage';
-import { BusinessPage } from './pages/BusinessPage';
+import { BusinessHubPage } from './pages/BusinessHubPage';
+import { BusinessRegisterPage } from './pages/BusinessRegisterPage';
+import { BusinessMinePage } from './pages/BusinessMinePage';
+import { BusinessManagePage } from './pages/BusinessManagePage';
 import { PermitsPage } from './pages/PermitsPage';
 import { CrimePage } from './pages/CrimePage';
 import { StatesPage } from './pages/StatesPage';
@@ -66,7 +69,10 @@ export default function App() {
                   <Route path="/" element={<DashboardPage />} />
                   <Route path="/jobs" element={<JobsPage />} />
                   <Route path="/education" element={<EducationPage />} />
-                  <Route path="/business" element={<BusinessPage />} />
+                  <Route path="/business" element={<BusinessHubPage />} />
+                  <Route path="/business/register" element={<BusinessRegisterPage />} />
+                  <Route path="/business/mine" element={<BusinessMinePage />} />
+                  <Route path="/business/:id" element={<BusinessManagePage />} />
                   <Route path="/bank" element={<BankPage />} />
                   <Route path="/stocks" element={<StocksPage />} />
                   <Route path="/gym" element={<GymPage />} />

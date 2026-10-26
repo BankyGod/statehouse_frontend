@@ -7,6 +7,7 @@ import type {
   Business,
   BusinessCatalog,
   BusinessCreate,
+  BusinessPerformanceDashboard,
   BusinessPreview,
   Character,
   CharacterCreate,
@@ -24,6 +25,11 @@ import type {
   TravelOption,
   EmployeeRole,
   Enrollment,
+  HousingAssistResult,
+  HousingListing,
+  PropertyCatalog,
+  RealEstateListingCreate,
+  RealEstateListingUpdate,
   Faction,
   GymCatalogItem,
   GymStat,
@@ -53,7 +59,6 @@ import type {
   ChatMessage,
   Election,
   HealthStatus,
-  HousingListing,
   NewsItem,
   Parliament,
   RaceType,
@@ -61,6 +66,7 @@ import type {
   StockListing,
   StockMarket,
   StockPortfolio,
+  StockPriceHistory,
   TravelQuote,
   TravelStartResult,
   UserOut,
@@ -186,6 +192,8 @@ export const permitsApi = {
 export const businessesApi = {
   catalog: () =>
     api.get<BusinessCatalog>('/api/businesses/catalog').then((r) => r.data),
+  propertyCatalog: () =>
+    api.get<PropertyCatalog>('/api/businesses/property-catalog').then((r) => r.data),
   preview: (params: {
     state_id: number;
     entity_type: string;
@@ -223,6 +231,34 @@ export const businessesApi = {
       .then((r) => r.data),
   fire: (business_id: number, employee_id: number) =>
     api.delete(`/api/businesses/${business_id}/employees/${employee_id}`).then((r) => r.data),
+  updateEmployee: (
+    business_id: number,
+    employee_id: number,
+    body: {
+      role?: EmployeeRole;
+      wage_per_week?: number;
+      display_name?: string;
+    },
+  ) =>
+    api
+      .patch<Employee>(`/api/businesses/${business_id}/employees/${employee_id}`, body)
+      .then((r) => r.data),
+  listings: (business_id: number) =>
+    api
+      .get<HousingListing[]>(`/api/businesses/${business_id}/listings`)
+      .then((r) => r.data),
+  createListing: (business_id: number, body: RealEstateListingCreate) =>
+    api
+      .post<HousingListing>(`/api/businesses/${business_id}/listings`, body)
+      .then((r) => r.data),
+  updateListing: (business_id: number, listing_id: number, body: RealEstateListingUpdate) =>
+    api
+      .patch<HousingListing>(`/api/businesses/${business_id}/listings/${listing_id}`, body)
+      .then((r) => r.data),
+  performance: (business_id: number) =>
+    api
+      .get<BusinessPerformanceDashboard>(`/api/businesses/${business_id}/performance`)
+      .then((r) => r.data),
 };
 
 export const crimeApi = {
@@ -397,6 +433,12 @@ export const stocksApi = {
     api
       .post<Record<string, unknown>>('/api/stocks/orders/fill', { order_id, shares })
       .then((r) => r.data),
+  history: (listing_id: number, limit = 120) =>
+    api
+      .get<StockPriceHistory>(`/api/stocks/listings/${listing_id}/history`, {
+        params: { limit },
+      })
+      .then((r) => r.data),
 };
 
 export const travelApi = {
@@ -435,6 +477,13 @@ export const housingApi = {
   buy: (listing_id: number) =>
     api.post<Residence>('/api/housing/buy', { listing_id }).then((r) => r.data),
   leave: () => api.post('/api/housing/leave').then((r) => r.data),
+  assist: (listing_id?: number | null) =>
+    api
+      .post<HousingAssistResult>(
+        '/api/housing/assist',
+        listing_id != null ? { listing_id } : {},
+      )
+      .then((r) => r.data),
 };
 
 export const medicalApi = {

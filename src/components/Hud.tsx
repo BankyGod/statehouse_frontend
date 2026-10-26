@@ -12,6 +12,7 @@ import {
   PiggyBank,
   Plane,
   ShieldAlert,
+  Smile,
   Sparkles,
   User,
   Zap,
@@ -88,6 +89,13 @@ export function Hud() {
           <Chip icon={<PiggyBank size={13} aria-hidden />} label="Bank" value={money(character.bank_balance)} tone="cash" pulseKey={character.bank_balance} className="hud-desktop-only" />
           <Chip icon={<Sparkles size={13} aria-hidden />} label="Age" value={num(character.age_years, 1)} pulseKey={character.age_years} className="hud-desktop-only" />
           <Chip icon={<Flame size={13} aria-hidden />} label="Heat" value={num(character.heat, 1)} tone={character.heat > 20 ? 'warn' : undefined} pulseKey={character.heat} className="hud-desktop-only" />
+          <Chip
+            icon={<Smile size={13} aria-hidden />}
+            label="Happy"
+            value={String(character.happiness ?? 50)}
+            pulseKey={character.happiness ?? 50}
+            className="hud-desktop-only"
+          />
           <Chip icon={<ShieldAlert size={13} aria-hidden />} label="Rep" value={String(character.reputation)} pulseKey={character.reputation} className="hud-desktop-only" />
         </div>
 

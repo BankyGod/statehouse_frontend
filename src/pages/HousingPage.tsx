@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Home, KeyRound, LogOut, ShoppingCart, Zap } from 'lucide-react';
+import { HandHelping, Home, KeyRound, LogOut, ShoppingCart, Zap } from 'lucide-react';
 import { housingApi, statesApi } from '../api/endpoints';
 import { useAuth } from '../context/AuthContext';
 import { ErrorNotice } from '../components/ErrorNotice';
@@ -14,7 +14,8 @@ export function HousingPage() {
   const { character, refreshCharacter } = useAuth();
   const toast = useToast();
   const qc = useQueryClient();
-  const locked = !!character?.is_jailed || !!character?.is_traveling || !!character?.is_hospitalized;
+  const housingLocked =
+    !!character?.is_jailed || !!character?.is_traveling || !!character?.is_hospitalized;
 
   const [stateFilter, setStateFilter] = useState<number | ''>(
     character?.current_state_id ?? '',
@@ -22,6 +23,7 @@ export function HousingPage() {
   const [rentTarget, setRentTarget] = useState<HousingListing | null>(null);
   const [buyTarget, setBuyTarget] = useState<HousingListing | null>(null);
   const [leaveOpen, setLeaveOpen] = useState(false);
+  const [assistOpen, setAssistOpen] = useState(false);
 
   const statesQ = useQuery({
     queryKey: ['states'],
@@ -78,6 +80,20 @@ export function HousingPage() {
     onError: (err) => toast.pushError(err),
   });
 
+  const assistMut = useMutation({
+    mutationFn: () => housingApi.assist(rentTarget?.id ?? null),
+    onSuccess: async (res) => {
+      toast.push(res.message || `Housed at ${res.listing_title}.`, 'ok');
+      if (res.loan_funded > 0) {
+        toast.push(`Welfare loan funded ${money(res.loan_funded)}.`, 'ok');
+      }
+      setAssistOpen(false);
+      setRentTarget(null);
+      await afterHousing();
+    },
+    onError: (err) => toast.pushError(err),
+  });
+
   const residence = meQ.data;
   const currentListing = listingsQ.data?.find((l) => l.id === residence?.listing_id);
 
@@ -88,14 +104,30 @@ export function HousingPage() {
           <Home size={26} aria-hidden /> Housing
         </h1>
         <p className="lede">
-          Rent or buy a place. Weekly rent clocks tick. Homeless status shows on your character.
+          Rent or buy — rent goes to the government treasury or a private landlord. Homeless blocks
+          most play until you are housed again.
         </p>
       </header>
 
       {character?.is_homeless && (
-        <p className="page-homeless-note">
-          You are currently homeless — find a listing to rent or buy.
-        </p>
+        <section className="panel warn-panel">
+          <p className="page-homeless-note" style={{ margin: 0 }}>
+            You are homeless — most actions are blocked. Rent, buy, or ask for government assistance.
+          </p>
+          <button
+            type="button"
+            className="btn primary"
+            style={{ marginTop: '0.65rem' }}
+            disabled={housingLocked || assistMut.isPending}
+            onClick={() => {
+              setRentTarget(null);
+              setAssistOpen(true);
+            }}
+          >
+            <HandHelping size={15} aria-hidden />
+            Request housing assistance
+          </button>
+        </section>
       )}
 
       <section className="panel">
@@ -143,7 +175,7 @@ export function HousingPage() {
             <button
               type="button"
               className="btn danger"
-              disabled={locked || leaveMut.isPending}
+              disabled={housingLocked || leaveMut.isPending}
               onClick={() => setLeaveOpen(true)}
             >
               <LogOut size={15} aria-hidden />
@@ -181,43 +213,84 @@ export function HousingPage() {
           {listingsQ.data?.map((l) => {
             const isMine = residence?.listing_id === l.id;
             const canBuy = l.buy_price != null;
+            const landlord =
+              l.ownership === 'private'
+                ? 'Private landlord'
+                : l.ownership === 'government'
+                  ? 'Government'
+                  : null;
             return (
               <div key={l.id} className="list-row housing-row">
                 <div>
                   <strong>{l.title}</strong>
                   <span className="badge">{l.kind}</span>
+                  {l.offer_mode && l.offer_mode !== 'both' && (
+                    <span className="badge">{l.offer_mode} only</span>
+                  )}
+                  {landlord && (
+                    <span className={`badge ${l.ownership === 'government' ? 'active' : ''}`}>
+                      {landlord}
+                    </span>
+                  )}
                   {l.home_state_only && <span className="badge warn">Home state only</span>}
                   <p className="muted">
                     {stateName(l.state_id)} · {l.description}
                   </p>
                 </div>
                 <div className="list-meta">
-                  <span className="cash">{money(l.weekly_rent)}/wk</span>
-                  {canBuy && <span>Buy {money(l.buy_price!)}</span>}
+                  {(l.offer_mode ?? 'both') !== 'sale' && (
+                    <span className="cash">{money(l.weekly_rent)}/wk</span>
+                  )}
+                  {canBuy && (l.offer_mode ?? 'both') !== 'rent' && (
+                    <span>Buy {money(l.buy_price!)}</span>
+                  )}
+                  {l.units_available != null && (
+                    <span>
+                      {l.units_available}/{l.units_total ?? l.units_available} left
+                    </span>
+                  )}
                   {l.energy_bonus > 0 && (
                     <span>
                       <Zap size={12} aria-hidden /> +{l.energy_bonus} energy
                     </span>
                   )}
+                  {(l.happiness_bonus ?? 0) > 0 && (
+                    <span>+{l.happiness_bonus} happy</span>
+                  )}
                 </div>
                 <div className="housing-actions">
-                  <button
-                    type="button"
-                    className="btn primary"
-                    disabled={locked || isMine || rentMut.isPending}
-                    onClick={() => setRentTarget(l)}
-                  >
-                    {isMine ? 'Current' : 'Rent'}
-                  </button>
-                  {canBuy && (
+                  {(l.offer_mode ?? 'both') !== 'sale' && (
+                    <button
+                      type="button"
+                      className="btn primary"
+                      disabled={housingLocked || isMine || rentMut.isPending}
+                      onClick={() => setRentTarget(l)}
+                    >
+                      {isMine ? 'Current' : 'Rent'}
+                    </button>
+                  )}
+                  {canBuy && (l.offer_mode ?? 'both') !== 'rent' && (
                     <button
                       type="button"
                       className="btn"
-                      disabled={locked || isMine || buyMut.isPending}
+                      disabled={housingLocked || isMine || buyMut.isPending}
                       onClick={() => setBuyTarget(l)}
                     >
                       <ShoppingCart size={14} aria-hidden />
                       Buy
+                    </button>
+                  )}
+                  {!!character?.is_homeless && (
+                    <button
+                      type="button"
+                      className="btn"
+                      disabled={housingLocked || assistMut.isPending}
+                      onClick={() => {
+                        setRentTarget(l);
+                        setAssistOpen(true);
+                      }}
+                    >
+                      Assist
                     </button>
                   )}
                 </div>
@@ -268,7 +341,33 @@ export function HousingPage() {
         onCancel={() => setLeaveOpen(false)}
         onConfirm={() => leaveMut.mutate()}
       >
-        <p>You will become homeless until you rent or buy again.</p>
+        <p>You will become homeless until you rent or buy again. Most actions stay locked while homeless.</p>
+      </ConfirmModal>
+
+      <ConfirmModal
+        open={assistOpen}
+        title="Request housing assistance?"
+        confirmLabel="Request help"
+        busy={assistMut.isPending}
+        onCancel={() => {
+          setAssistOpen(false);
+          setRentTarget(null);
+        }}
+        onConfirm={() => assistMut.mutate()}
+      >
+        <p>
+          Government housing assistance places you in
+          {rentTarget ? (
+            <>
+              {' '}
+              <strong>{rentTarget.title}</strong>
+            </>
+          ) : (
+            ' the cheapest available shelter here'
+          )}
+          . If you cannot afford the move-in cost, a welfare loan may be funded and repaid from future
+          wages.
+        </p>
       </ConfirmModal>
     </div>
   );

@@ -28,7 +28,7 @@ React + Vite + TypeScript, React Router, TanStack Query, Axios (Bearer JWT).
 | `/login` `/register` | Auth (login is form-urlencoded) |
 | `/create-character` | State picker + display name |
 | `/` | Dashboard + HUD |
-| `/jobs` `/education` `/gym` `/inventory` `/business` `/bank` `/stocks` `/travel` `/housing` `/medical` | Life systems |
+| `/jobs` `/education` `/gym` `/inventory` `/business` `/business/register` `/business/mine` `/business/:id` `/bank` `/stocks` `/travel` `/housing` `/medical` | Life systems |
 | `/politics` `/parties` `/legislation` `/cabinet` `/government` `/treasury` `/enterprises` `/news` | Civic systems |
 | `/permits` `/crime` `/jail` | Risk / custody |
 | `/social` `/activity` `/chat` | Social + alerts |

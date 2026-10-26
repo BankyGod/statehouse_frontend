@@ -55,6 +55,8 @@ export type RegisterRequest = {
 };
 
 export type Character = {
+  happiness?: number;
+  housing_energy_regen_bonus?: number;
   id: number;
   display_name: string;
   home_state_id: number;
@@ -388,6 +390,64 @@ export type HousingListing = {
   buy_price: number | null;
   energy_bonus: number;
   home_state_only: boolean;
+  ownership?: 'government' | 'private' | string;
+  owner_business_id?: number | null;
+  is_available?: boolean;
+  property_type_slug?: string | null;
+  offer_mode?: 'rent' | 'sale' | 'both' | string;
+  acquisition_cost_each?: number;
+  units_total?: number | null;
+  units_available?: number | null;
+  happiness_bonus?: number;
+  energy_regen_bonus_minutes?: number;
+};
+
+export type PropertyTypeOption = {
+  slug: string;
+  label: string;
+  kind: string;
+  blurb: string;
+  acquisition_cost: number;
+  suggested_weekly_rent: number;
+  suggested_buy_price: number;
+  energy_bonus: number;
+  happiness_bonus: number;
+  energy_regen_bonus_minutes: number;
+};
+
+export type PropertyCatalog = {
+  property_types: PropertyTypeOption[];
+  offer_modes: { value: string; label: string }[];
+  max_units_per_listing: number;
+  note: string;
+};
+
+export type RealEstateListingCreate = {
+  property_type: string;
+  units: number;
+  offer_mode: 'rent' | 'sale' | 'both' | string;
+  title?: string | null;
+  description?: string | null;
+  weekly_rent?: number | null;
+  buy_price?: number | null;
+};
+
+export type RealEstateListingUpdate = {
+  weekly_rent?: number | null;
+  buy_price?: number | null;
+  is_available?: boolean | null;
+  offer_mode?: 'rent' | 'sale' | 'both' | string | null;
+};
+
+export type HousingAssistResult = {
+  assisted: boolean;
+  residence_id: number;
+  listing_id: number;
+  listing_title: string;
+  weekly_rent: number;
+  loan_id: number | null;
+  loan_funded: number;
+  message: string;
 };
 
 export type Residence = {
@@ -444,6 +504,69 @@ export type StockListing = {
 
 export type StockMarket = {
   listings: StockListing[];
+};
+
+export type StockPriceHistoryPoint = {
+  t: number;
+  price: number;
+  reason?: string;
+};
+
+export type StockPriceHistory = {
+  listing_id: number;
+  points: StockPriceHistoryPoint[];
+};
+
+export type BusinessIpoCheck = {
+  key: string;
+  label: string;
+  ok: boolean;
+  detail: string;
+};
+
+export type BusinessPerformanceMetrics = {
+  age_days: number;
+  cash_balance: number;
+  lifetime_revenue: number;
+  lifetime_wages: number;
+  net_profit: number;
+  employee_count: number;
+  performance_score: number;
+};
+
+export type BusinessPerformanceDashboard = {
+  business_id: number;
+  name: string;
+  sector: string;
+  status: string;
+  is_public: boolean;
+  metrics: BusinessPerformanceMetrics;
+  ipo: {
+    eligible: boolean;
+    checks: BusinessIpoCheck[];
+    listing_fee: number;
+  };
+  performance_history: Array<{
+    t: number;
+    cash_balance: number;
+    lifetime_revenue: number;
+    lifetime_wages: number;
+    interval_revenue: number;
+    interval_wages: number;
+    employee_count: number;
+    performance_score: number;
+  }>;
+  stock: {
+    listing_id: number;
+    symbol: string;
+    share_price: number;
+    float_shares: number;
+    founder_shares: number;
+    ipo_raised: number;
+    is_booming: boolean;
+    listed_at: string;
+  } | null;
+  price_history: StockPriceHistoryPoint[];
 };
 
 export type StockHolding = {

@@ -6,7 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { ErrorNotice } from '../components/ErrorNotice';
 import { useToast } from '../context/ToastContext';
 import { money } from '../lib/format';
-import { loadHistory, recordPrice, type PricePoint } from '../lib/stockHistory';
+import { historyStats, type PricePoint } from '../lib/stockHistory';
 import { StockChart } from '../components/StockChart';
 
 type MarketFilter = 'all' | 'booming' | 'held';
@@ -19,7 +19,6 @@ export function StocksPage() {
     !!character?.is_jailed || !!character?.is_traveling || !!character?.is_hospitalized;
 
   const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [chartPoints, setChartPoints] = useState<PricePoint[]>([]);
   const [qty, setQty] = useState('1');
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<MarketFilter>('all');
@@ -49,6 +48,13 @@ export function StocksPage() {
     refetchInterval: 15_000,
   });
 
+  const historyQ = useQuery({
+    queryKey: ['stocks', 'history', selectedId],
+    queryFn: () => stocksApi.history(selectedId!),
+    enabled: selectedId != null,
+    refetchInterval: 12_000,
+  });
+
   const bizQ = useQuery({
     queryKey: ['businesses', 'me'],
     queryFn: () => businessesApi.me(),
@@ -56,6 +62,7 @@ export function StocksPage() {
 
   async function refreshMoney() {
     await qc.invalidateQueries({ queryKey: ['stocks'] });
+    await qc.invalidateQueries({ queryKey: ['stocks', 'history'] });
     await qc.invalidateQueries({ queryKey: ['bank'] });
     void refreshCharacter();
   }
@@ -157,26 +164,21 @@ export function StocksPage() {
     }
   }, [filtered, listings, selectedId]);
 
-  useEffect(() => {
-    if (selectedId == null) return;
-    const listing = listings.find((l) => l.id === selectedId);
-    if (!listing) return;
-    setChartPoints(recordPrice(listing.id, listing.share_price, { minIntervalMs: 5_000 }));
-  }, [listings, selectedId, marketQ.dataUpdatedAt]);
-
-  useEffect(() => {
-    if (selectedId == null) return;
-    setChartPoints(loadHistory(selectedId));
-  }, [selectedId]);
-
-  useEffect(() => {
-    for (const l of listings) {
-      recordPrice(l.id, l.share_price, { minIntervalMs: 8_000 });
-    }
-  }, [listings, marketQ.dataUpdatedAt]);
-
   const selected = listings.find((l) => l.id === selectedId) ?? null;
   const heldSelected = selected ? heldByListing.get(selected.id) : undefined;
+
+  const chartPoints: PricePoint[] = useMemo(() => {
+    const pts = (historyQ.data?.points ?? []).map((p) => ({ t: p.t, price: p.price }));
+    if (pts.length >= 1) return pts;
+    if (selected) {
+      const now = Date.now();
+      return [
+        { t: now - 60_000, price: selected.share_price },
+        { t: now, price: selected.share_price },
+      ];
+    }
+    return [];
+  }, [historyQ.data, selected]);
 
   function parseQty(): number | null {
     const n = Number(qty);
@@ -191,9 +193,11 @@ export function StocksPage() {
   }
 
   function deltaFor(id: number, price: number) {
-    const hist = loadHistory(id);
-    const prev = hist.length > 1 ? hist[hist.length - 2].price : price;
-    return price - prev;
+    if (id === selectedId && chartPoints.length > 1) {
+      return price - chartPoints[0].price;
+    }
+    const stats = historyStats(chartPoints);
+    return id === selectedId ? stats.change : 0;
   }
 
   return (
