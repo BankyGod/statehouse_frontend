@@ -24,15 +24,27 @@ export function CreateCharacterPage() {
     queryFn: () => statesApi.list(),
   });
 
+  const nameCheckQ = useQuery({
+    queryKey: ['characters', 'check-name', displayName.trim()],
+    queryFn: () => charactersApi.checkName(displayName.trim()),
+    enabled: displayName.trim().length >= 3,
+    staleTime: 5_000,
+  });
+
   if (!token) return <Navigate to="/login" replace />;
   if (character) return <Navigate to="/" replace />;
 
   const selected = statesQ.data?.find((s) => s.id === homeStateId);
+  const nameBlocked = displayName.trim().length >= 3 && nameCheckQ.data?.available === false;
 
   function openConfirm(e: FormEvent) {
     e.preventDefault();
     if (!homeStateId || displayName.trim().length < 3) {
       toast.push('Pick a display name and home state.', 'err');
+      return;
+    }
+    if (nameBlocked) {
+      toast.push('That name is already taken — pick another.', 'err');
       return;
     }
     setConfirmOpen(true);
@@ -83,6 +95,13 @@ export function CreateCharacterPage() {
             maxLength={64}
             required
           />
+          {displayName.trim().length >= 3 && nameCheckQ.data && (
+            <p className={`name-avail ${nameCheckQ.data.available ? 'ok' : 'bad'}`}>
+              {nameCheckQ.data.available
+                ? 'Name is available'
+                : nameCheckQ.data.reason || 'Name already registered — choose another'}
+            </p>
+          )}
         </label>
         <label>
           Bio <span className="muted">(optional)</span>
@@ -114,7 +133,11 @@ export function CreateCharacterPage() {
               Selected: <strong>{selected.name}</strong> · bonus {money(selected.starting_bonus)}
             </p>
           )}
-          <button type="submit" className="btn primary" disabled={!homeStateId || busy}>
+          <button
+            type="submit"
+            className="btn primary"
+            disabled={!homeStateId || busy || nameBlocked || nameCheckQ.isFetching}
+          >
             Create character
           </button>
         </div>

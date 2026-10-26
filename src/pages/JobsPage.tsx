@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Briefcase, GraduationCap, Hammer, Zap } from 'lucide-react';
-import { educationApi, jobsApi, permitsApi, statesApi } from '../api/endpoints';
+import { Briefcase, Check, GraduationCap, Hammer, X, Zap } from 'lucide-react';
+import { educationApi, inboxApi, jobsApi, permitsApi, statesApi } from '../api/endpoints';
 import { useAuth } from '../context/AuthContext';
 import { ErrorNotice } from '../components/ErrorNotice';
 import { useToast } from '../context/ToastContext';
@@ -31,7 +31,14 @@ export function JobsPage() {
     queryFn: () => jobsApi.me(),
   });
 
+  const companyJobQ = useQuery({
+    queryKey: ['inbox', 'job'],
+    queryFn: () => inboxApi.companyJob(),
+    refetchInterval: 20_000,
+  });
+
   const { listing: currentListing } = useJobListing(jobQ.data);
+  const companyJob = companyJobQ.data ?? null;
 
   const eduQ = useQuery({
     queryKey: ['education', 'me'],
@@ -77,14 +84,44 @@ export function JobsPage() {
     onError: (err) => toast.pushError(err),
   });
 
+  const invitesQ = useQuery({
+    queryKey: ['inbox', 'invites'],
+    queryFn: () => inboxApi.invites(),
+    refetchInterval: 15_000,
+  });
+
+  const acceptInviteMut = useMutation({
+    mutationFn: (id: number) => inboxApi.acceptInvite(id),
+    onSuccess: async (res) => {
+      toast.push(typeof res.message === 'string' ? res.message : 'Joined the company.', 'ok');
+      await qc.invalidateQueries({ queryKey: ['inbox'] });
+      await qc.invalidateQueries({ queryKey: ['jobs'] });
+      await qc.invalidateQueries({ queryKey: ['businesses'] });
+      void refreshCharacter();
+    },
+    onError: (err) => toast.pushError(err),
+  });
+
+  const declineInviteMut = useMutation({
+    mutationFn: (id: number) => inboxApi.declineInvite(id),
+    onSuccess: async () => {
+      toast.push('Offer declined.', 'ok');
+      await qc.invalidateQueries({ queryKey: ['inbox'] });
+    },
+    onError: (err) => toast.pushError(err),
+  });
+
+  const companyInvites = invitesQ.data ?? [];
   const energy = character?.energy ?? 0;
   const energyNeed = currentListing?.energy_cost ?? 0;
   const lowEnergy = currentListing != null && energy < energyNeed;
   // Work is allowed without a resolved listing — API validates energy/job.
-  const canWork = !!jobQ.data && !locked && !lowEnergy && !workMut.isPending;
+  const canWork =
+    !!jobQ.data && !companyJob && !locked && !lowEnergy && !workMut.isPending;
 
   function canHire(l: JobListing): { ok: boolean; reason?: string } {
     if (locked) return { ok: false, reason: 'Actions locked' };
+    if (companyJob) return { ok: false, reason: 'On company payroll — leave that job first' };
     if (jobQ.data?.listing_id === l.id) return { ok: false, reason: 'Already hired' };
     if (l.min_education_level > eduLevel) {
       return { ok: false, reason: `Need education level ${l.min_education_level}` };
@@ -108,7 +145,7 @@ export function JobsPage() {
   }
 
   return (
-    <div className={`play-page ${jobQ.data ? 'has-dock' : ''}`}>
+    <div className={`play-page ${jobQ.data && !companyJob ? 'has-dock' : ''}`}>
       <header className="page-header compact">
         <h1>
           <Briefcase size={22} aria-hidden /> Jobs
@@ -121,10 +158,64 @@ export function JobsPage() {
 
       <LockBanner />
 
-      <section className={`play-hero ${jobQ.data ? 'ready' : 'empty'}`}>
+      {companyInvites.length > 0 && (
+        <section className="panel" style={{ marginBottom: '0.85rem' }}>
+          <h2 style={{ marginTop: 0 }}>Company job offers</h2>
+          <p className="muted sm">
+            Accepting ends your current state job automatically. You can also manage these in{' '}
+            <Link to="/inbox">Inbox</Link>.
+          </p>
+          <div className="inbox-list">
+            {companyInvites.map((inv) => (
+              <article key={inv.id} className="inbox-item offer">
+                <header>
+                  <strong>{inv.business_name}</strong>
+                  <span className="muted sm">
+                    {inv.role} · {money(inv.wage_per_week)}/wk
+                  </span>
+                </header>
+                <div className="row-actions">
+                  <button
+                    type="button"
+                    className="btn primary sm"
+                    disabled={locked || acceptInviteMut.isPending}
+                    onClick={() => acceptInviteMut.mutate(inv.id)}
+                  >
+                    <Check size={14} aria-hidden /> Accept & join
+                  </button>
+                  <button
+                    type="button"
+                    className="btn danger sm"
+                    disabled={locked || declineInviteMut.isPending}
+                    onClick={() => declineInviteMut.mutate(inv.id)}
+                  >
+                    <X size={14} aria-hidden /> Decline
+                  </button>
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
+
+      <section className={`play-hero ${companyJob || jobQ.data ? 'ready' : 'empty'}`}>
         {jobQ.isLoading && <p className="muted">Checking job…</p>}
         {jobQ.isError && <ErrorNotice error={jobQ.error} />}
-        {!jobQ.isLoading && !jobQ.data && (
+        {companyJob && (
+          <>
+            <div className="play-hero-copy">
+              <span className="play-kicker">
+                <Hammer size={12} aria-hidden /> Company payroll
+              </span>
+              <strong>{companyJob.business_name}</strong>
+              <p className="muted">
+                {companyJob.role} · {money(companyJob.wage_per_week)}/wk — state shop shifts are
+                closed while you work here. See <Link to="/inbox">Inbox → My company job</Link>.
+              </p>
+            </div>
+          </>
+        )}
+        {!jobQ.isLoading && !jobQ.data && !companyJob && (
           <>
             <div className="play-hero-copy">
               <strong>Unemployed</strong>
@@ -141,7 +232,7 @@ export function JobsPage() {
             </button>
           </>
         )}
-        {jobQ.data && (
+        {jobQ.data && !companyJob && (
           <>
             <div className="play-hero-copy">
               <span className="play-kicker">
@@ -250,7 +341,7 @@ export function JobsPage() {
         </div>
       </section>
 
-      {jobQ.data && (
+      {jobQ.data && !companyJob && (
         <div className="play-dock">
           <div className="play-dock-info">
             <strong>{currentListing?.title ?? 'Job'}</strong>

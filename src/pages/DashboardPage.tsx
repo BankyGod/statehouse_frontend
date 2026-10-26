@@ -15,6 +15,7 @@ import {
   GraduationCap,
   HeartPulse,
   Home,
+  Inbox,
   Landmark,
   Map,
   MapPin,
@@ -150,6 +151,7 @@ export function DashboardPage() {
       items: [
         { to: '/news', label: 'News', hint: 'Headlines', Icon: Newspaper },
         { to: '/chat', label: 'Chat', hint: 'State rooms', Icon: MessagesSquare, locked },
+        { to: '/inbox', label: 'Inbox', hint: 'Mail & job offers', Icon: Inbox, locked },
         { to: '/social', label: 'Social', hint: 'Friends & factions', Icon: Users, locked },
         { to: '/activity', label: 'Activity', hint: 'Alerts', Icon: Bell },
         { to: '/states', label: 'States', hint: 'United Amir', Icon: Map },

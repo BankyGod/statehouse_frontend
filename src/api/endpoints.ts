@@ -37,6 +37,10 @@ import type {
   InventoryItem,
   JailStatus,
   Job,
+  CompanyJob,
+  InboxOverview,
+  JobInvite,
+  JobInviteAcceptResult,
   JobListing,
   Loan,
   MarketListing,
@@ -128,6 +132,26 @@ export const charactersApi = {
     api
       .post<Character>('/api/characters/me/home-state/reset', { new_home_state_id })
       .then((r) => r.data),
+  checkName: (q: string) =>
+    api
+      .get<{
+        name: string;
+        normalized: string | null;
+        available: boolean;
+        reason: string | null;
+      }>('/api/characters/check-name', { params: { q } })
+      .then((r) => r.data),
+  search: (q: string, limit = 12) =>
+    api
+      .get<{
+        results: Array<{
+          id: number;
+          display_name: string;
+          username: string | null;
+          label: string;
+        }>;
+      }>('/api/characters/search', { params: { q, limit } })
+      .then((r) => r.data.results ?? []),
 };
 
 export const jobsApi = {
@@ -224,10 +248,26 @@ export const businessesApi = {
       .then((r) => r.data),
   hirePlayer: (
     business_id: number,
-    body: { display_name: string; role?: EmployeeRole; wage_per_week?: number | null },
+    body: {
+      display_name?: string | null;
+      character_id?: number | null;
+      role?: EmployeeRole;
+      wage_per_week?: number | null;
+      message?: string | null;
+    },
   ) =>
     api
-      .post<Employee>(`/api/businesses/${business_id}/employees/hire-player`, body)
+      .post<JobInvite>(`/api/businesses/${business_id}/employees/hire-player`, body)
+      .then((r) => r.data),
+  invites: (business_id: number) =>
+    api
+      .get<{ invites: JobInvite[] }>(`/api/businesses/${business_id}/invites`)
+      .then((r) => r.data.invites ?? []),
+  cancelInvite: (business_id: number, invite_id: number) =>
+    api
+      .post<Record<string, unknown>>(
+        `/api/businesses/${business_id}/invites/${invite_id}/cancel`,
+      )
       .then((r) => r.data),
   fire: (business_id: number, employee_id: number) =>
     api.delete(`/api/businesses/${business_id}/employees/${employee_id}`).then((r) => r.data),
@@ -327,6 +367,33 @@ export const activitiesApi = {
     api
       .post<{ marked: number }>('/api/activities/notifications/read')
       .then((r) => r.data),
+};
+
+export const inboxApi = {
+  overview: () => api.get<InboxOverview>('/api/inbox').then((r) => r.data),
+  messages: (mark_read = true) =>
+    api
+      .get<{ messages: DmMessage[] }>('/api/inbox/messages', { params: { mark_read } })
+      .then((r) => r.data.messages ?? []),
+  send: (body: {
+    body: string;
+    subject?: string | null;
+    to_character_id?: number | null;
+    to_display_name?: string | null;
+    business_id?: number | null;
+  }) => api.post<DmMessage>('/api/inbox/messages', body).then((r) => r.data),
+  invites: () =>
+    api.get<{ invites: JobInvite[] }>('/api/inbox/invites').then((r) => r.data.invites ?? []),
+  acceptInvite: (invite_id: number) =>
+    api
+      .post<JobInviteAcceptResult>(`/api/inbox/invites/${invite_id}/accept`)
+      .then((r) => r.data),
+  declineInvite: (invite_id: number) =>
+    api
+      .post<Record<string, unknown>>(`/api/inbox/invites/${invite_id}/decline`)
+      .then((r) => r.data),
+  companyJob: () =>
+    api.get<{ job: CompanyJob | null }>('/api/inbox/job').then((r) => r.data.job),
 };
 
 export const socialApi = {

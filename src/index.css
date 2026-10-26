@@ -3878,6 +3878,133 @@ button.list-row.selectable {
 .biz-inline-field.grow {
   flex: 1 1 140px;
 }
+.biz-hire-search {
+  position: relative;
+}
+.biz-hire-dropdown {
+  position: absolute;
+  z-index: 20;
+  left: 0;
+  right: 0;
+  top: calc(100% + 2px);
+  margin: 0;
+  padding: 0.25rem 0;
+  list-style: none;
+  background: #12161d;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  max-height: 220px;
+  overflow: auto;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+}
+.biz-hire-dropdown li {
+  margin: 0;
+}
+.biz-hire-dropdown li.muted {
+  padding: 0.45rem 0.65rem;
+  font-size: 0.8rem;
+  text-transform: none;
+  letter-spacing: normal;
+}
+.biz-hire-dropdown button {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.55rem;
+  align-items: baseline;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  color: #eee;
+  padding: 0.45rem 0.65rem;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.85rem;
+  text-transform: none;
+  letter-spacing: normal;
+}
+.biz-hire-dropdown button:hover {
+  background: rgba(120, 170, 220, 0.16);
+}
+.name-avail {
+  margin: 0.25rem 0 0;
+  font-size: 0.78rem;
+  text-transform: none;
+  letter-spacing: normal;
+}
+.name-avail.ok {
+  color: #6dcf8a;
+}
+.name-avail.bad {
+  color: #e07070;
+}
+.inbox-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0 0 0.85rem;
+}
+.inbox-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+.inbox-item {
+  padding: 0.7rem 0.8rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+}
+.inbox-item.unread {
+  border-color: rgba(120, 170, 220, 0.35);
+}
+.inbox-item header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.35rem;
+  margin-bottom: 0.25rem;
+}
+.inbox-subject {
+  margin: 0 0 0.25rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+.inbox-item p {
+  margin: 0.2rem 0;
+}
+.row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.55rem;
+}
+.biz-pending-invites {
+  margin-top: 0.85rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.biz-pending-invites h3 {
+  margin: 0 0 0.45rem;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #888;
+}
+.biz-pending-invites ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.biz-pending-invites li {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.4rem;
+  align-items: center;
+  font-size: 0.86rem;
+}
 .biz-inline-field input,
 .biz-inline-field select,
 .biz-table input,

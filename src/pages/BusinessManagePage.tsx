@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -11,7 +11,13 @@ import {
   Users,
   Wallet,
 } from 'lucide-react';
-import { businessesApi, statesApi, stocksApi } from '../api/endpoints';
+import {
+  businessesApi,
+  charactersApi,
+  permitsApi,
+  statesApi,
+  stocksApi,
+} from '../api/endpoints';
 import { ErrorNotice } from '../components/ErrorNotice';
 import { LockBanner } from '../components/LockBanner';
 import { StockChart } from '../components/StockChart';
@@ -38,15 +44,19 @@ export function BusinessManagePage() {
   const [hireMode, setHireMode] = useState<'npc' | 'player'>('npc');
   const [npcRole, setNpcRole] = useState<EmployeeRole>('labourer');
   const [npcName, setNpcName] = useState('');
-  const [playerName, setPlayerName] = useState('');
+  const [playerQuery, setPlayerQuery] = useState('');
+  const [playerPickId, setPlayerPickId] = useState<number | null>(null);
+  const [playerPickLabel, setPlayerPickLabel] = useState('');
   const [playerRole, setPlayerRole] = useState<EmployeeRole>('clerk');
   const [playerWage, setPlayerWage] = useState('');
+  const [hireMenuOpen, setHireMenuOpen] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
   const [editRole, setEditRole] = useState<EmployeeRole>('clerk');
   const [editWage, setEditWage] = useState('');
   const [editName, setEditName] = useState('');
 
   const [listTitle, setListTitle] = useState('');
+  const [listStateId, setListStateId] = useState('');
   const [listPropertyType, setListPropertyType] = useState('one_bed');
   const [listUnits, setListUnits] = useState('1');
   const [listOfferMode, setListOfferMode] = useState<'rent' | 'sale' | 'both'>('both');
@@ -92,12 +102,36 @@ export function BusinessManagePage() {
     staleTime: 60_000,
   });
 
+  const permitsQ = useQuery({
+    queryKey: ['permits', 'me'],
+    queryFn: () => permitsApi.me(),
+    enabled: isRealEstate,
+    refetchInterval: 30_000,
+  });
+
   const perfQ = useQuery({
     queryKey: ['businesses', businessId, 'performance'],
     queryFn: () => businessesApi.performance(businessId),
     enabled: Number.isFinite(businessId) && businessId > 0,
     refetchInterval: 20_000,
   });
+
+  useEffect(() => {
+    if (listStateId === '' && business?.state_id) {
+      setListStateId(String(business.state_id));
+    }
+  }, [business?.state_id, listStateId]);
+
+  const listStateNum = Number(listStateId) || business?.state_id || 0;
+  const canListInState =
+    !listStateNum ||
+    listStateNum === character?.home_state_id ||
+    (permitsQ.data ?? []).some(
+      (p) =>
+        p.state_id === listStateNum &&
+        p.permit_type === 'business' &&
+        p.status === 'active',
+    );
 
   const propertyTypes = propertyCatalogQ.data?.property_types ?? [];
   const selectedPropertyType: PropertyTypeOption | undefined = propertyTypes.find(
@@ -151,18 +185,50 @@ export function BusinessManagePage() {
     onError: (err) => toast.pushError(err),
   });
 
+  const playerSearchQ = useQuery({
+    queryKey: ['characters', 'search', playerQuery.trim()],
+    queryFn: () => charactersApi.search(playerQuery.trim()),
+    enabled: hireMode === 'player' && playerQuery.trim().length >= 1 && !playerPickId,
+    staleTime: 8_000,
+  });
+
+  const invitesQ = useQuery({
+    queryKey: ['businesses', businessId, 'invites'],
+    queryFn: () => businessesApi.invites(businessId),
+    enabled: Number.isFinite(businessId) && businessId > 0 && hireMode === 'player',
+    refetchInterval: 20_000,
+  });
+
   const hirePlayerMut = useMutation({
     mutationFn: () =>
       businessesApi.hirePlayer(businessId, {
-        display_name: playerName.trim(),
+        character_id: playerPickId,
+        display_name: playerPickId ? null : playerQuery.trim() || null,
         role: playerRole,
         wage_per_week: playerWage.trim() ? Number(playerWage) : null,
       }),
-    onSuccess: async (e) => {
-      toast.push(`Hired player ${e.display_name}.`, 'ok');
-      setPlayerName('');
+    onSuccess: async (inv) => {
+      toast.push(
+        `Invite sent to ${inv.to_display_name} — they must accept in Inbox.`,
+        'ok',
+      );
+      setPlayerQuery('');
+      setPlayerPickId(null);
+      setPlayerPickLabel('');
       setPlayerWage('');
+      setHireMenuOpen(false);
       await refreshBiz();
+      await qc.invalidateQueries({ queryKey: ['businesses', businessId, 'invites'] });
+      await qc.invalidateQueries({ queryKey: ['inbox'] });
+    },
+    onError: (err) => toast.pushError(err),
+  });
+
+  const cancelInviteMut = useMutation({
+    mutationFn: (invite_id: number) => businessesApi.cancelInvite(businessId, invite_id),
+    onSuccess: async () => {
+      toast.push('Invite cancelled.', 'ok');
+      await qc.invalidateQueries({ queryKey: ['businesses', businessId, 'invites'] });
     },
     onError: (err) => toast.pushError(err),
   });
@@ -195,6 +261,7 @@ export function BusinessManagePage() {
   const createListingMut = useMutation({
     mutationFn: () =>
       businessesApi.createListing(businessId, {
+        state_id: listStateNum,
         property_type: listPropertyType,
         units: unitsNum,
         offer_mode: listOfferMode,
@@ -215,7 +282,7 @@ export function BusinessManagePage() {
       }),
     onSuccess: async (listing) => {
       toast.push(
-        `Stocked ${listing.units_total ?? unitsNum}× ${listing.title} (${listing.offer_mode}).`,
+        `Stocked ${listing.units_total ?? unitsNum}× ${listing.title} in ${stateName(listing.state_id)} (${listing.offer_mode}).`,
         'ok',
       );
       setListTitle('');
@@ -223,6 +290,16 @@ export function BusinessManagePage() {
       setListRent('');
       setListBuy('');
       await refreshBiz();
+    },
+    onError: (err) => toast.pushError(err),
+  });
+
+  const applyPermitMut = useMutation({
+    mutationFn: () => permitsApi.apply(listStateNum, 'business'),
+    onSuccess: async () => {
+      toast.push(`Business permit applied for ${stateName(listStateNum)}.`, 'ok');
+      await qc.invalidateQueries({ queryKey: ['permits'] });
+      void refreshCharacter();
     },
     onError: (err) => toast.pushError(err),
   });
@@ -769,24 +846,61 @@ export function BusinessManagePage() {
                   </form>
                 ) : (
                   <form
-                    className="biz-inline-bar"
+                    className="biz-inline-bar biz-hire-player"
                     onSubmit={(e) => {
                       e.preventDefault();
-                      if (playerName.trim().length < 3) {
-                        return toast.push('Enter display name.', 'err');
+                      if (!playerPickId && playerQuery.trim().length < 1) {
+                        return toast.push('Search by name or character id.', 'err');
                       }
                       hirePlayerMut.mutate();
                     }}
                   >
-                    <label className="biz-inline-field grow">
-                      Display name
+                    <label className="biz-inline-field grow biz-hire-search">
+                      Player (name or #id)
                       <input
-                        value={playerName}
-                        onChange={(e) => setPlayerName(e.target.value)}
-                        minLength={3}
+                        value={playerPickId ? playerPickLabel : playerQuery}
+                        onChange={(e) => {
+                          setPlayerPickId(null);
+                          setPlayerPickLabel('');
+                          setPlayerQuery(e.target.value);
+                          setHireMenuOpen(true);
+                        }}
+                        onFocus={() => setHireMenuOpen(true)}
+                        placeholder="e.g. Ama or 42"
                         disabled={locked || !active}
-                        required
+                        autoComplete="off"
+                        required={!playerPickId}
                       />
+                      {hireMenuOpen && !playerPickId && playerQuery.trim().length >= 1 && (
+                        <ul className="biz-hire-dropdown" role="listbox">
+                          {playerSearchQ.isFetching && (
+                            <li className="muted">Searching…</li>
+                          )}
+                          {!playerSearchQ.isFetching &&
+                            !(playerSearchQ.data?.length) && (
+                              <li className="muted">No matching players</li>
+                            )}
+                          {(playerSearchQ.data ?? []).map((p) => (
+                            <li key={p.id}>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setPlayerPickId(p.id);
+                                  setPlayerPickLabel(p.label);
+                                  setPlayerQuery(p.display_name);
+                                  setHireMenuOpen(false);
+                                }}
+                              >
+                                <strong>{p.display_name}</strong>
+                                <span className="muted">#{p.id}</span>
+                                {p.username ? (
+                                  <span className="muted sm">@{p.username}</span>
+                                ) : null}
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
                     </label>
                     <label className="biz-inline-field">
                       Role
@@ -816,11 +930,43 @@ export function BusinessManagePage() {
                     <button
                       type="submit"
                       className="btn primary sm"
-                      disabled={locked || !active || hirePlayerMut.isPending}
+                      disabled={
+                        locked ||
+                        !active ||
+                        hirePlayerMut.isPending ||
+                        (!playerPickId && playerQuery.trim().length < 1)
+                      }
                     >
-                      Hire
+                      {hirePlayerMut.isPending ? 'Sending…' : 'Send invite'}
                     </button>
                   </form>
+                )}
+                {hireMode === 'player' && (
+                  <p className="muted sm" style={{ marginTop: '0.45rem' }}>
+                    Players join only after they accept the offer in their Inbox.
+                  </p>
+                )}
+                {hireMode === 'player' && !!(invitesQ.data?.length) && (
+                  <div className="biz-pending-invites">
+                    <h3>Pending invites</h3>
+                    <ul>
+                      {(invitesQ.data ?? []).map((inv) => (
+                        <li key={inv.id}>
+                          <span>
+                            {inv.to_display_name} · {inv.role} · {money(inv.wage_per_week)}/wk
+                          </span>
+                          <button
+                            type="button"
+                            className="btn ghost sm"
+                            disabled={locked || cancelInviteMut.isPending}
+                            onClick={() => cancelInviteMut.mutate(inv.id)}
+                          >
+                            Cancel
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                 )}
               </div>
 
@@ -948,16 +1094,40 @@ export function BusinessManagePage() {
                   <span className="muted sm">{stockCount} listings</span>
                 </div>
                 <p className="muted sm">
-                  Acquire units with company cash, then open them for rent and/or sale in{' '}
-                  {stateName(business.state_id)}.
+                  Pick the state where the property sits — only people in that state can rent or
+                  buy it. Outside your home state you need an active business permit for that soil.
                 </p>
                 {propertyCatalogQ.isError && <ErrorNotice error={propertyCatalogQ.error} />}
                 {listingsQ.isError && <ErrorNotice error={listingsQ.error} />}
+
+                {!canListInState && listStateNum > 0 && (
+                  <div className="biz-dash-banner">
+                    No business permit for {stateName(listStateNum)}.{' '}
+                    <button
+                      type="button"
+                      className="btn sm primary"
+                      disabled={locked || applyPermitMut.isPending}
+                      onClick={() => applyPermitMut.mutate()}
+                    >
+                      {applyPermitMut.isPending ? 'Applying…' : 'Apply for business permit'}
+                    </button>{' '}
+                    <Link to="/permits" className="btn ghost sm">
+                      Permits desk
+                    </Link>
+                  </div>
+                )}
 
                 <form
                   className="biz-stock-form"
                   onSubmit={(e) => {
                     e.preventDefault();
+                    if (!listStateNum) return toast.push('Select the property state.', 'err');
+                    if (!canListInState) {
+                      return toast.push(
+                        `Apply for a business permit in ${stateName(listStateNum)} first.`,
+                        'err',
+                      );
+                    }
                     if (!selectedPropertyType) return toast.push('Pick a property type.', 'err');
                     if (acquisitionPreview > business.cash_balance) {
                       return toast.push(
@@ -968,6 +1138,26 @@ export function BusinessManagePage() {
                     createListingMut.mutate();
                   }}
                 >
+                  <label className="span-2">
+                    State
+                    <select
+                      value={listStateId}
+                      onChange={(e) => setListStateId(e.target.value)}
+                      disabled={locked || !active}
+                      required
+                    >
+                      <option value="" disabled>
+                        Select state…
+                      </option>
+                      {(statesQ.data ?? []).map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.name}
+                          {s.id === character?.home_state_id ? ' (home)' : ''}
+                          {s.id === business.state_id ? ' (HQ)' : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
                   <label>
                     Type
                     <select
@@ -1069,6 +1259,8 @@ export function BusinessManagePage() {
                         !active ||
                         createListingMut.isPending ||
                         !selectedPropertyType ||
+                        !canListInState ||
+                        !listStateNum ||
                         acquisitionPreview > business.cash_balance
                       }
                     >
@@ -1082,6 +1274,7 @@ export function BusinessManagePage() {
                     <thead>
                       <tr>
                         <th>Listing</th>
+                        <th>State</th>
                         <th>Mode</th>
                         <th>Units</th>
                         <th>Rent</th>
@@ -1092,7 +1285,7 @@ export function BusinessManagePage() {
                     <tbody>
                       {!listingsQ.data?.length && (
                         <tr>
-                          <td colSpan={6} className="muted">
+                          <td colSpan={7} className="muted">
                             No property stock yet.
                           </td>
                         </tr>
@@ -1106,6 +1299,7 @@ export function BusinessManagePage() {
                               {l.is_available === false ? ' · closed' : ''}
                             </div>
                           </td>
+                          <td>{stateName(l.state_id)}</td>
                           <td>{l.offer_mode ?? 'both'}</td>
                           <td>
                             {l.units_available ?? '∞'}/{l.units_total ?? '∞'}

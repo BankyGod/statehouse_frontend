@@ -1,6 +1,8 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { Landmark, UserPlus } from 'lucide-react';
+import { charactersApi } from '../api/endpoints';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 
@@ -13,8 +15,20 @@ export function RegisterPage() {
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
 
+  const nameCheckQ = useQuery({
+    queryKey: ['characters', 'check-name', username.trim()],
+    queryFn: () => charactersApi.checkName(username.trim()),
+    enabled: username.trim().length >= 3,
+    staleTime: 5_000,
+  });
+  const nameBlocked = username.trim().length >= 3 && nameCheckQ.data?.available === false;
+
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
+    if (nameBlocked) {
+      toast.push('That username is already taken — pick another.', 'err');
+      return;
+    }
     setBusy(true);
     try {
       await register(email.trim(), username.trim(), password);
@@ -60,6 +74,13 @@ export function RegisterPage() {
               autoComplete="username"
               required
             />
+            {username.trim().length >= 3 && nameCheckQ.data && (
+              <p className={`name-avail ${nameCheckQ.data.available ? 'ok' : 'bad'}`}>
+                {nameCheckQ.data.available
+                  ? 'Username is available'
+                  : nameCheckQ.data.reason || 'Already registered — choose another'}
+              </p>
+            )}
           </label>
           <label>
             Password
@@ -73,7 +94,11 @@ export function RegisterPage() {
               required
             />
           </label>
-          <button type="submit" className="btn primary" disabled={busy}>
+          <button
+            type="submit"
+            className="btn primary"
+            disabled={busy || nameBlocked || nameCheckQ.isFetching}
+          >
             <UserPlus size={16} aria-hidden />
             {busy ? 'Creating…' : 'Create account'}
           </button>

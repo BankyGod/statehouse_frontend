@@ -17,8 +17,8 @@ export function HousingPage() {
   const housingLocked =
     !!character?.is_jailed || !!character?.is_traveling || !!character?.is_hospitalized;
 
-  const [stateFilter, setStateFilter] = useState<number | ''>(
-    character?.current_state_id ?? '',
+  const [stateFilter, setStateFilter] = useState<number>(
+    character?.current_state_id ?? 0,
   );
   const [rentTarget, setRentTarget] = useState<HousingListing | null>(null);
   const [buyTarget, setBuyTarget] = useState<HousingListing | null>(null);
@@ -37,9 +37,10 @@ export function HousingPage() {
   });
 
   const listingsQ = useQuery({
-    queryKey: ['housing', 'listings', stateFilter],
+    queryKey: ['housing', 'listings', stateFilter || character?.current_state_id],
     queryFn: () =>
-      housingApi.listings(stateFilter === '' ? undefined : Number(stateFilter)),
+      housingApi.listings(stateFilter || character?.current_state_id || undefined),
+    enabled: !!(stateFilter || character?.current_state_id),
   });
 
   const stateName = (id: number) =>
@@ -104,8 +105,8 @@ export function HousingPage() {
           <Home size={26} aria-hidden /> Housing
         </h1>
         <p className="lede">
-          Rent or buy — rent goes to the government treasury or a private landlord. Homeless blocks
-          most play until you are housed again.
+          Browse homes by state. You must be physically in that state to rent or buy. Rent goes to
+          the treasury or a private landlord — homeless blocks most play until you are housed.
         </p>
       </header>
 
@@ -191,10 +192,9 @@ export function HousingPage() {
           <label className="inline-label">
             State
             <select
-              value={stateFilter}
-              onChange={(e) => setStateFilter(e.target.value ? Number(e.target.value) : '')}
+              value={stateFilter || character?.current_state_id || ''}
+              onChange={(e) => setStateFilter(Number(e.target.value))}
             >
-              <option value="">All / default</option>
               {statesQ.data?.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.name}

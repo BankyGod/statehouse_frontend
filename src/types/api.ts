@@ -229,12 +229,65 @@ export type DmMessage = {
   id: number;
   from_character_id?: number;
   to_character_id?: number;
+  from?: string;
+  to?: string;
   from_name?: string;
   to_name?: string;
+  business_id?: number | null;
+  business_name?: string | null;
+  subject?: string | null;
   body: string;
+  is_read?: boolean;
+  direction?: 'in' | 'out';
   posted_at?: string;
   created_at?: string;
   [key: string]: unknown;
+};
+
+export type JobInvite = {
+  id: number;
+  business_id: number;
+  business_name: string;
+  from_character_id: number;
+  from_display_name: string;
+  to_character_id: number;
+  to_display_name: string;
+  role: string;
+  wage_per_week: number;
+  message?: string | null;
+  status: string;
+  posted_at: string;
+  responded_at?: string | null;
+};
+
+export type CompanyJob = {
+  employee_id: number;
+  business_id: number;
+  business_name: string;
+  role: string;
+  wage_per_week: number;
+  hired_at: string;
+  display_name: string;
+};
+
+export type JobInviteAcceptResult = {
+  invite_id: number;
+  employee_id: number;
+  business_id: number;
+  business_name: string;
+  role: string;
+  wage_per_week: number;
+  left_state_job: boolean;
+  left_company_job: boolean;
+  message: string;
+};
+
+export type InboxOverview = {
+  unread_mail: number;
+  pending_invites: number;
+  messages: DmMessage[];
+  invites: JobInvite[];
+  company_job: CompanyJob | null;
 };
 
 export type EmployeeRole = 'labourer' | 'clerk' | 'specialist' | 'manager' | 'executive';
@@ -423,6 +476,7 @@ export type PropertyCatalog = {
 };
 
 export type RealEstateListingCreate = {
+  state_id: number;
   property_type: string;
   units: number;
   offer_mode: 'rent' | 'sale' | 'both' | string;

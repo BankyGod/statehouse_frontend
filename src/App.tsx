@@ -39,6 +39,7 @@ import { InventoryPage } from './pages/InventoryPage';
 import { JailPage } from './pages/JailPage';
 import { SocialPage } from './pages/SocialPage';
 import { ActivityPage } from './pages/ActivityPage';
+import { InboxPage } from './pages/InboxPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -84,6 +85,7 @@ export default function App() {
                   <Route path="/crime" element={<CrimePage />} />
                   <Route path="/jail" element={<JailPage />} />
                   <Route path="/social" element={<SocialPage />} />
+                  <Route path="/inbox" element={<InboxPage />} />
                   <Route path="/activity" element={<ActivityPage />} />
                   <Route path="/states" element={<StatesPage />} />
                   <Route path="/states/:slug" element={<StateDetailPage />} />

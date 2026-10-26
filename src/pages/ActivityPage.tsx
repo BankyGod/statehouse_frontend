@@ -1,6 +1,7 @@
+import { Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Bell } from 'lucide-react';
-import { activitiesApi } from '../api/endpoints';
+import { Bell, Check, Inbox, X } from 'lucide-react';
+import { activitiesApi, inboxApi } from '../api/endpoints';
 import { ErrorNotice } from '../components/ErrorNotice';
 import { useToast } from '../context/ToastContext';
 
@@ -19,6 +20,12 @@ export function ActivityPage() {
     queryFn: () => activitiesApi.me(),
   });
 
+  const invitesQ = useQuery({
+    queryKey: ['inbox', 'invites'],
+    queryFn: () => inboxApi.invites(),
+    refetchInterval: 15_000,
+  });
+
   const readMut = useMutation({
     mutationFn: () => activitiesApi.markRead(),
     onSuccess: async (res) => {
@@ -28,14 +35,82 @@ export function ActivityPage() {
     onError: (err) => toast.pushError(err),
   });
 
+  const acceptMut = useMutation({
+    mutationFn: (id: number) => inboxApi.acceptInvite(id),
+    onSuccess: async (res) => {
+      toast.push(typeof res.message === 'string' ? res.message : 'Joined the company.', 'ok');
+      await qc.invalidateQueries({ queryKey: ['inbox'] });
+      await qc.invalidateQueries({ queryKey: ['activities'] });
+      await qc.invalidateQueries({ queryKey: ['jobs'] });
+      await qc.invalidateQueries({ queryKey: ['businesses'] });
+    },
+    onError: (err) => toast.pushError(err),
+  });
+
+  const declineMut = useMutation({
+    mutationFn: (id: number) => inboxApi.declineInvite(id),
+    onSuccess: async () => {
+      toast.push('Offer declined.', 'ok');
+      await qc.invalidateQueries({ queryKey: ['inbox'] });
+      await qc.invalidateQueries({ queryKey: ['activities'] });
+    },
+    onError: (err) => toast.pushError(err),
+  });
+
+  const invites = invitesQ.data ?? [];
+
   return (
     <div className="play-page">
       <header className="page-header compact">
         <h1>
           <Bell size={22} aria-hidden /> Activity
         </h1>
-        <p className="lede">Notifications and recent activity feed.</p>
+        <p className="lede">Notifications, job offers, and recent activity.</p>
       </header>
+
+      {invites.length > 0 && (
+        <section className="play-section panel">
+          <div className="row-between">
+            <h2>Company job offers</h2>
+            <Link to="/inbox" className="btn ghost sm">
+              <Inbox size={14} aria-hidden /> Open Inbox
+            </Link>
+          </div>
+          <p className="muted sm">
+            Accepting ends your current state job (and any other company role) automatically.
+          </p>
+          <div className="inbox-list">
+            {invites.map((inv) => (
+              <article key={inv.id} className="inbox-item offer">
+                <header>
+                  <strong>{inv.business_name}</strong>
+                  <span className="muted sm">
+                    {inv.role} · from {inv.from_display_name}
+                  </span>
+                </header>
+                <div className="row-actions">
+                  <button
+                    type="button"
+                    className="btn primary sm"
+                    disabled={acceptMut.isPending}
+                    onClick={() => acceptMut.mutate(inv.id)}
+                  >
+                    <Check size={14} aria-hidden /> Accept & join
+                  </button>
+                  <button
+                    type="button"
+                    className="btn danger sm"
+                    disabled={declineMut.isPending}
+                    onClick={() => declineMut.mutate(inv.id)}
+                  >
+                    <X size={14} aria-hidden /> Decline
+                  </button>
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
 
       <section className="play-section">
         <div className="row-between">
@@ -66,6 +141,11 @@ export function ActivityPage() {
                   <span className="muted sm">
                     {new Date(n.posted_at || n.created_at).toLocaleString()}
                   </span>
+                  {n.ref_type === 'job_invite' && n.ref_id != null && (
+                    <Link to="/inbox" className="btn ghost sm">
+                      Respond in Inbox
+                    </Link>
+                  )}
                 </div>
               </div>
             </article>
