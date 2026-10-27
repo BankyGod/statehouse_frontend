@@ -69,9 +69,6 @@ export function MedicalPage() {
         <h1>
           <HeartPulse size={26} aria-hidden /> Medical
         </h1>
-        <p className="lede">
-          Clinic heals instantly for cash. Hospital restores more over real time and locks actions.
-        </p>
       </header>
 
       <section className="panel">
@@ -127,7 +124,6 @@ export function MedicalPage() {
           <h2>
             <Syringe size={18} aria-hidden /> Clinic
           </h2>
-          <p className="muted">Pay per HP restored. Fast heal — you stay free to act.</p>
           <label>
             HP to restore (max {Math.max(1, missing) || 1})
             <input
@@ -162,9 +158,6 @@ export function MedicalPage() {
           <h2>
             <Hospital size={18} aria-hidden /> Hospital
           </h2>
-          <p className="muted">
-            Full recovery over time. You are locked in bed until discharge.
-          </p>
           <button
             type="button"
             className="btn danger"

@@ -3,15 +3,10 @@ import { useQuery } from '@tanstack/react-query';
 import {
   Bell,
   Briefcase,
-  BriefcaseBusiness,
-  Building,
   Building2,
-  Factory,
-  Flag,
   CandlestickChart,
   Dumbbell,
   FileBadge,
-  Gavel,
   GraduationCap,
   HeartPulse,
   Home,
@@ -24,7 +19,6 @@ import {
   Package,
   Plane,
   Scale,
-  ScrollText,
   Skull,
   Users,
   UserRound,
@@ -119,30 +113,7 @@ export function DashboardPage() {
     {
       title: 'Nation',
       items: [
-        { to: '/politics', label: 'Politics', hint: 'Elections', Icon: Scale, locked },
-        { to: '/parties', label: 'Parties', hint: 'Join a party', Icon: Flag, locked },
-        { to: '/cabinet', label: 'Cabinet', hint: 'Ministers', Icon: BriefcaseBusiness, locked },
-        {
-          to: '/government',
-          label: 'Civil service',
-          hint: 'Gov posts',
-          Icon: Building,
-          locked,
-        },
-        {
-          to: '/treasury',
-          label: 'Treasury',
-          hint: 'Tax & public purse',
-          Icon: Landmark,
-          locked,
-        },
-        {
-          to: '/enterprises',
-          label: 'Enterprises',
-          hint: 'Rail · energy · ports',
-          Icon: Factory,
-        },
-        { to: '/legislation', label: 'Laws', hint: 'Bills & budget', Icon: ScrollText, locked },
+        { to: '/nation', label: 'Nation', hint: 'Politics & gov', Icon: Scale, locked },
         { to: '/permits', label: 'Permits', hint: 'Licenses', Icon: FileBadge, locked },
       ],
     },
@@ -160,8 +131,7 @@ export function DashboardPage() {
     {
       title: 'Crime',
       items: [
-        { to: '/crime', label: 'Crime', hint: 'Risky jobs', Icon: Skull, danger: true, locked },
-        { to: '/jail', label: 'Jail', hint: 'Bail desk', Icon: Gavel },
+        { to: '/crime', label: 'Crime', hint: 'Streets & jail', Icon: Skull, danger: true, locked },
       ],
     },
     {

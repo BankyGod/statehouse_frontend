@@ -90,9 +90,6 @@ export function ChatPage() {
         <h1>
           <MessagesSquare size={26} aria-hidden /> Chat
         </h1>
-        <p className="lede">
-          State chat rooms. Home is your home-state channel; switch to any state to read or post.
-        </p>
       </header>
 
       <div className="chat-toolbar inline-form">

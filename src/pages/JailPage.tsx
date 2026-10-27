@@ -4,6 +4,7 @@ import { Gavel, Skull } from 'lucide-react';
 import { jailApi } from '../api/endpoints';
 import { useAuth } from '../context/AuthContext';
 import { ErrorNotice } from '../components/ErrorNotice';
+import { HubBack } from '../components/SysHub';
 import { useToast } from '../context/ToastContext';
 import { money } from '../lib/format';
 import { Timer } from '../components/Timer';
@@ -34,11 +35,11 @@ export function JailPage() {
 
   return (
     <div className="play-page">
+      <HubBack to="/crime" label="Crime" />
       <header className="page-header compact">
         <h1>
           <Gavel size={22} aria-hidden /> Jail
         </h1>
-        <p className="lede">Status and bail when you are locked up.</p>
       </header>
 
       {jailQ.isLoading && <p className="muted">Checking…</p>}

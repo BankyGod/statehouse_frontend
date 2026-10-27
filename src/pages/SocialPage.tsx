@@ -1,17 +1,27 @@
 import { useState, type FormEvent } from 'react';
+import { Navigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Flag, Swords, Users } from 'lucide-react';
 import { socialApi } from '../api/endpoints';
 import { ErrorNotice } from '../components/ErrorNotice';
+import { HubBack } from '../components/SysHub';
 import { LockBanner } from '../components/LockBanner';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+
+const SOCIAL_SECTIONS = ['relations', 'factions', 'events'] as const;
+type SocialSection = (typeof SOCIAL_SECTIONS)[number];
 
 function relName(r: Record<string, unknown>) {
   return String(r.display_name ?? r.other_name ?? r.name ?? `#${r.id ?? '?'}`);
 }
 
 export function SocialPage() {
+  const { section } = useParams();
+  const desk = (SOCIAL_SECTIONS as readonly string[]).includes(section ?? '')
+    ? (section as SocialSection)
+    : null;
+
   const { character, refreshCharacter } = useAuth();
   const toast = useToast();
   const qc = useQueryClient();
@@ -20,19 +30,24 @@ export function SocialPage() {
   const [friendName, setFriendName] = useState('');
   const [enemyName, setEnemyName] = useState('');
   const [attackName, setAttackName] = useState('');
-  const [dmTo, setDmTo] = useState('');
-  const [dmBody, setDmBody] = useState('');
   const [factionName, setFactionName] = useState('');
   const [factionTag, setFactionTag] = useState('');
   const [factionDesc, setFactionDesc] = useState('');
 
-  const relQ = useQuery({ queryKey: ['social', 'relations'], queryFn: () => socialApi.relations() });
-  const eventsQ = useQuery({ queryKey: ['social', 'events'], queryFn: () => socialApi.events() });
-  const factionsQ = useQuery({ queryKey: ['social', 'factions'], queryFn: () => socialApi.factions() });
-  const msgsQ = useQuery({
-    queryKey: ['social', 'messages'],
-    queryFn: () => socialApi.messages(),
-    refetchInterval: 20_000,
+  const relQ = useQuery({
+    queryKey: ['social', 'relations'],
+    queryFn: () => socialApi.relations(),
+    enabled: desk === 'relations' || desk == null,
+  });
+  const eventsQ = useQuery({
+    queryKey: ['social', 'events'],
+    queryFn: () => socialApi.events(),
+    enabled: desk === 'events' || desk == null,
+  });
+  const factionsQ = useQuery({
+    queryKey: ['social', 'factions'],
+    queryFn: () => socialApi.factions(),
+    enabled: desk === 'factions' || desk == null,
   });
 
   async function refreshSocial() {
@@ -111,57 +126,60 @@ export function SocialPage() {
     onError: (err) => toast.pushError(err),
   });
 
-  const dmMut = useMutation({
-    mutationFn: () => socialApi.sendMessage(dmTo.trim(), dmBody.trim()),
-    onSuccess: async () => {
-      toast.push('Message sent.', 'ok');
-      setDmBody('');
-      await refreshSocial();
-    },
-    onError: (err) => toast.pushError(err),
-  });
-
   const pending = relQ.data?.pending ?? [];
   const friends = relQ.data?.friends ?? [];
   const enemies = relQ.data?.enemies ?? [];
 
+  if (!desk) return <Navigate to="/social" replace />;
+
+  const titles: Record<SocialSection, { title: string; Icon: typeof Users }> = {
+    relations: { title: 'Relations', Icon: Swords },
+    factions: { title: 'Factions', Icon: Flag },
+    events: { title: 'World events', Icon: Users },
+  };
+  const meta = titles[desk];
+
   return (
     <div className="play-page">
+      <HubBack to="/social" label="Social" />
       <header className="page-header compact">
         <h1>
-          <Users size={22} aria-hidden /> Social
+          <meta.Icon size={22} aria-hidden /> {meta.title}
         </h1>
-        <p className="lede">Friends, enemies, factions, events, and DMs.</p>
       </header>
 
       <LockBanner />
 
-      <section className="play-section">
-        <h2>World events</h2>
-        {eventsQ.isError && <ErrorNotice error={eventsQ.error} />}
-        {!eventsQ.data?.length && !eventsQ.isLoading && <p className="muted">No active events.</p>}
-        <div className="play-list">
-          {eventsQ.data?.map((e) => (
-            <article key={e.id} className="play-row compact">
-              <div className="play-row-main">
-                <div className="play-row-title">
-                  <strong>{e.title}</strong>
+      {desk === 'events' && (
+        <section className="play-section">
+          {eventsQ.isError && <ErrorNotice error={eventsQ.error} />}
+          {!eventsQ.data?.length && !eventsQ.isLoading && (
+            <p className="muted">No active events.</p>
+          )}
+          <div className="play-list">
+            {eventsQ.data?.map((e) => (
+              <article key={e.id} className="play-row compact">
+                <div className="play-row-main">
+                  <div className="play-row-title">
+                    <strong>{e.title}</strong>
+                  </div>
+                  <p className="muted play-row-desc">{e.summary}</p>
+                  <div className="play-row-meta">
+                    <span>
+                      {e.effect_key} ×{e.effect_value}
+                    </span>
+                    <span className="muted sm">
+                      until {new Date(e.ends_at).toLocaleDateString()}
+                    </span>
+                  </div>
                 </div>
-                <p className="muted play-row-desc">{e.summary}</p>
-                <div className="play-row-meta">
-                  <span>
-                    {e.effect_key} ×{e.effect_value}
-                  </span>
-                  <span className="muted sm">
-                    until {new Date(e.ends_at).toLocaleDateString()}
-                  </span>
-                </div>
-              </div>
-            </article>
-          ))}
-        </div>
-      </section>
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
 
+      {desk === 'relations' && (
       <div className="profile-dossier-grid">
         <section className="panel">
           <h2>Friends</h2>
@@ -275,11 +293,10 @@ export function SocialPage() {
           </ul>
         </section>
       </div>
+      )}
 
+      {desk === 'factions' && (
       <section className="panel">
-        <h2>
-          <Flag size={16} aria-hidden /> Factions
-        </h2>
         {character?.faction_id != null && (
           <p className="muted">You are in faction #{character.faction_id}.</p>
         )}
@@ -359,57 +376,7 @@ export function SocialPage() {
           ))}
         </div>
       </section>
-
-      <section className="panel">
-        <h2>Direct messages</h2>
-        <form
-          className="stack-form"
-          onSubmit={(e: FormEvent) => {
-            e.preventDefault();
-            if (dmTo.trim().length < 3 || !dmBody.trim()) return;
-            dmMut.mutate();
-          }}
-        >
-          <label>
-            To
-            <input value={dmTo} onChange={(e) => setDmTo(e.target.value)} minLength={3} disabled={locked} />
-          </label>
-          <label>
-            Message
-            <textarea
-              value={dmBody}
-              onChange={(e) => setDmBody(e.target.value)}
-              rows={2}
-              maxLength={500}
-              disabled={locked}
-            />
-          </label>
-          <button type="submit" className="btn primary" disabled={locked || dmMut.isPending}>
-            Send
-          </button>
-        </form>
-        <div className="play-list" style={{ marginTop: '0.75rem' }}>
-          {(msgsQ.data ?? []).map((m, i) => (
-            <article key={String(m.id ?? i)} className="play-row compact">
-              <div className="play-row-main">
-                <div className="play-row-title">
-                  <strong>
-                    {String(m.from_name ?? m.from_character_id ?? 'Someone')} →{' '}
-                    {String(m.to_name ?? m.to_character_id ?? '…')}
-                  </strong>
-                </div>
-                <p className="play-row-desc">{m.body}</p>
-                <div className="play-row-meta">
-                  <span className="muted sm">
-                    {new Date(String(m.posted_at ?? m.created_at ?? Date.now())).toLocaleString()}
-                  </span>
-                </div>
-              </div>
-            </article>
-          ))}
-          {!msgsQ.data?.length && <p className="muted">No messages yet.</p>}
-        </div>
-      </section>
+      )}
     </div>
   );
 }

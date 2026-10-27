@@ -64,6 +64,8 @@ import type {
   Election,
   HealthStatus,
   NewsItem,
+  MyOfficePay,
+  OfficePayCatalog,
   Parliament,
   RaceType,
   Residence,
@@ -229,6 +231,59 @@ export const businessesApi = {
   create: (body: BusinessCreate) =>
     api.post<Business>('/api/businesses', body).then((r) => r.data),
   me: () => api.get<Business[]>('/api/businesses/me').then((r) => r.data),
+  marketplace: (params?: { state_id?: number; sector?: string }) =>
+    api
+      .get<{
+        products: Array<Record<string, unknown>>;
+        services: Array<Record<string, unknown>>;
+      }>('/api/businesses/marketplace', { params })
+      .then((r) => r.data),
+  commerce: (business_id: number) =>
+    api
+      .get<{
+        mode: string;
+        catalog: {
+          products: Array<Record<string, unknown>>;
+          services: Array<Record<string, unknown>>;
+        };
+        inventory: Array<Record<string, unknown>>;
+      }>(`/api/businesses/${business_id}/commerce`)
+      .then((r) => r.data),
+  stockItem: (business_id: number, sku: string, quantity: number) =>
+    api
+      .post<Record<string, unknown>>(`/api/businesses/${business_id}/commerce/stock`, {
+        sku,
+        quantity,
+      })
+      .then((r) => r.data),
+  priceItem: (
+    business_id: number,
+    body: { sku: string; sell_price: number; is_listed?: boolean },
+  ) =>
+    api
+      .post<Record<string, unknown>>(`/api/businesses/${business_id}/commerce/price`, body)
+      .then((r) => r.data),
+  buyCommerce: (business_id: number, sku: string, quantity = 1) =>
+    api
+      .post<Record<string, unknown>>(`/api/businesses/${business_id}/commerce/buy`, {
+        sku,
+        quantity,
+      })
+      .then((r) => r.data),
+  bookCommerce: (business_id: number, sku: string) =>
+    api
+      .post<Record<string, unknown>>(`/api/businesses/${business_id}/commerce/book`, { sku })
+      .then((r) => r.data),
+  wholesaleBuy: (
+    business_id: number,
+    body: { seller_business_id: number; sku: string; quantity: number },
+  ) =>
+    api
+      .post<Record<string, unknown>>(
+        `/api/businesses/${business_id}/commerce/wholesale-buy`,
+        body,
+      )
+      .then((r) => r.data),
   deposit: (business_id: number, amount: number) =>
     api
       .post<{ business_id: number; deposited: number; business_cash: number; cash: number }>(
@@ -565,6 +620,10 @@ export const medicalApi = {
 
 export const politicsApi = {
   parliament: () => api.get<Parliament>('/api/politics/parliament').then((r) => r.data),
+  officePay: () =>
+    api.get<OfficePayCatalog>('/api/politics/office-pay').then((r) => r.data),
+  myOfficePay: () =>
+    api.get<MyOfficePay>('/api/politics/office-pay/me').then((r) => r.data),
   currentElection: () =>
     api
       .get<{ election: Election | null }>('/api/politics/elections/current')

@@ -45,7 +45,6 @@ export function GymPage() {
         <h1>
           <Dumbbell size={22} aria-hidden /> Gym
         </h1>
-        <p className="lede">Spend energy to raise combat stats.</p>
       </header>
 
       <LockBanner />

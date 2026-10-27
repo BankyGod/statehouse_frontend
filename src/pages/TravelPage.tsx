@@ -88,10 +88,6 @@ export function TravelPage() {
         <h1>
           <Plane size={26} aria-hidden /> Travel
         </h1>
-        <p className="lede">
-          Pick a destination, then choose an airline, rail line, or coach — prices and times
-          differ. Travel permits discount bus/rail more than air.
-        </p>
       </header>
 
       {traveling && (
@@ -112,7 +108,6 @@ export function TravelPage() {
               />
             </li>
           </ul>
-          <p className="muted">Actions stay locked until you arrive.</p>
         </div>
       )}
 
@@ -166,9 +161,10 @@ export function TravelPage() {
                   <div>
                     <strong>
                       <ModeIcon mode={opt.mode} /> {opt.carrier_name}{' '}
-                      <span className={`badge ${opt.ownership === 'government' ? 'active' : ''}`}>
-                        {opt.ownership === 'government' ? 'Gov' : 'Private'}
-                      </span>
+                      <span className="badge active">State SOE</span>
+                      {opt.enterprise_name ? (
+                        <span className="muted"> · {opt.enterprise_name}</span>
+                      ) : null}
                       <span className="badge">{opt.mode}</span>
                     </strong>
                     <p className="muted">{opt.tagline}</p>

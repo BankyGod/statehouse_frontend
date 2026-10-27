@@ -1,16 +1,26 @@
 import { useState } from 'react';
+import { Navigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { HandHelping, Home, KeyRound, LogOut, ShoppingCart, Zap } from 'lucide-react';
+import { HandHelping, Home, KeyRound, LogOut, Search, ShoppingCart, Zap } from 'lucide-react';
 import { housingApi, statesApi } from '../api/endpoints';
 import { useAuth } from '../context/AuthContext';
 import { ErrorNotice } from '../components/ErrorNotice';
+import { HubBack } from '../components/SysHub';
 import { useToast } from '../context/ToastContext';
 import { money } from '../lib/format';
 import { Timer } from '../components/Timer';
 import { ConfirmModal } from '../components/ConfirmModal';
 import type { HousingListing } from '../types/api';
 
+const HOUSING_SECTIONS = ['residence', 'listings', 'assist'] as const;
+type HousingSection = (typeof HOUSING_SECTIONS)[number];
+
 export function HousingPage() {
+  const { section } = useParams();
+  const desk = (HOUSING_SECTIONS as readonly string[]).includes(section ?? '')
+    ? (section as HousingSection)
+    : null;
+
   const { character, refreshCharacter } = useAuth();
   const toast = useToast();
   const qc = useQueryClient();
@@ -98,27 +108,29 @@ export function HousingPage() {
   const residence = meQ.data;
   const currentListing = listingsQ.data?.find((l) => l.id === residence?.listing_id);
 
+  if (!desk) return <Navigate to="/housing" replace />;
+
+  const titles: Record<HousingSection, { title: string; Icon: typeof Home }> = {
+    residence: { title: 'My residence', Icon: KeyRound },
+    listings: { title: 'Find a place', Icon: Search },
+    assist: { title: 'Welfare assist', Icon: HandHelping },
+  };
+  const meta = titles[desk];
+
   return (
-    <div>
-      <header className="page-header">
+    <div className="play-page">
+      <HubBack to="/housing" label="Housing" />
+      <header className="page-header compact">
         <h1>
-          <Home size={26} aria-hidden /> Housing
+          <meta.Icon size={22} aria-hidden /> {meta.title}
         </h1>
-        <p className="lede">
-          Browse homes by state. You must be physically in that state to rent or buy. Rent goes to
-          the treasury or a private landlord — homeless blocks most play until you are housed.
-        </p>
       </header>
 
-      {character?.is_homeless && (
-        <section className="panel warn-panel">
-          <p className="page-homeless-note" style={{ margin: 0 }}>
-            You are homeless — most actions are blocked. Rent, buy, or ask for government assistance.
-          </p>
+      {desk === 'assist' && (
+        <section className="panel">
           <button
             type="button"
             className="btn primary"
-            style={{ marginTop: '0.65rem' }}
             disabled={housingLocked || assistMut.isPending}
             onClick={() => {
               setRentTarget(null);
@@ -131,9 +143,18 @@ export function HousingPage() {
         </section>
       )}
 
+      {desk === 'residence' && character?.is_homeless && (
+        <section className="panel warn-panel">
+          <p className="page-homeless-note" style={{ margin: 0 }}>
+            No fixed address on file.
+          </p>
+        </section>
+      )}
+
+      {desk === 'residence' && (
       <section className="panel">
         <h2>
-          <KeyRound size={18} aria-hidden /> My residence
+          <KeyRound size={18} aria-hidden /> Status
         </h2>
         {meQ.isLoading && <p className="muted">Loading…</p>}
         {!meQ.isLoading && !residence && (
@@ -185,7 +206,9 @@ export function HousingPage() {
           </div>
         )}
       </section>
+      )}
 
+      {desk === 'listings' && (
       <section>
         <div className="row-between" style={{ marginBottom: '0.75rem' }}>
           <h2 style={{ margin: 0 }}>Listings</h2>
@@ -299,6 +322,7 @@ export function HousingPage() {
           })}
         </div>
       </section>
+      )}
 
       <ConfirmModal
         open={!!rentTarget}
@@ -356,7 +380,7 @@ export function HousingPage() {
         onConfirm={() => assistMut.mutate()}
       >
         <p>
-          Government housing assistance places you in
+          Place you in
           {rentTarget ? (
             <>
               {' '}
@@ -365,8 +389,7 @@ export function HousingPage() {
           ) : (
             ' the cheapest available shelter here'
           )}
-          . If you cannot afford the move-in cost, a welfare loan may be funded and repaid from future
-          wages.
+          ?
         </p>
       </ConfirmModal>
     </div>

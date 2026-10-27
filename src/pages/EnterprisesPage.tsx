@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Building2, CandlestickChart, Factory } from 'lucide-react';
 import { enterprisesApi, statesApi } from '../api/endpoints';
 import { ErrorNotice } from '../components/ErrorNotice';
+import { HubBack } from '../components/SysHub';
 
 export function EnterprisesPage() {
   const listQ = useQuery({
@@ -22,14 +23,11 @@ export function EnterprisesPage() {
 
   return (
     <div className="play-page">
+      <HubBack to="/nation" label="Nation" />
       <header className="page-header compact">
         <h1>
           <Factory size={22} aria-hidden /> State enterprises
         </h1>
-        <p className="lede">
-          National rail, energy, ports, and the public university system — government-owned
-          backbones you travel on, study in, and can trade on the exchange.
-        </p>
       </header>
 
       {listQ.isLoading && <p className="muted">Loading enterprises…</p>}

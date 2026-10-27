@@ -124,9 +124,6 @@ export function InboxPage() {
         <h1>
           <Inbox size={22} aria-hidden /> Inbox
         </h1>
-        <p className="lede">
-          Mail from players and companies, plus job offers you must accept before joining a firm.
-        </p>
       </header>
 
       {inboxQ.isError && <ErrorNotice error={inboxQ.error} />}
@@ -209,8 +206,8 @@ export function InboxPage() {
             <Briefcase size={18} aria-hidden /> Job offers
           </h2>
           <p className="muted sm">
-            Accepting a company offer ends your current state job (and any other company role)
-            automatically.
+            Accepting ends your current state job and any other company role. Political office
+            holders cannot join company payroll (they may still own businesses).
           </p>
           {!invites.length && <p className="muted">No pending offers.</p>}
           <div className="inbox-list">

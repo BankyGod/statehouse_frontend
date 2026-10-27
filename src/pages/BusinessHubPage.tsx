@@ -1,8 +1,8 @@
-import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowRight, Building2, ClipboardList, FolderKanban } from 'lucide-react';
+import { Building2, ClipboardList, FolderKanban } from 'lucide-react';
 import { businessesApi } from '../api/endpoints';
 import { LockBanner } from '../components/LockBanner';
+import { HubPageShell, SysHubCard, SysHubGrid } from '../components/SysHub';
 import { money } from '../lib/format';
 
 export function BusinessHubPage() {
@@ -17,49 +17,30 @@ export function BusinessHubPage() {
   const treasury = meQ.data?.reduce((sum, b) => sum + (b.cash_balance || 0), 0) ?? 0;
 
   return (
-    <div className="play-page">
-      <header className="page-header compact">
-        <h1>
-          <Building2 size={22} aria-hidden /> Business
-        </h1>
-        <p className="lede">
-          Register a company or open one of yours to hire staff, move cash, and list stock.
-        </p>
-      </header>
-
+    <HubPageShell title="Business" Icon={Building2}>
       <LockBanner />
-
-      <div className="biz-hub-grid">
-        <Link to="/business/register" className="biz-hub-card register">
-          <div className="biz-hub-icon" aria-hidden>
-            <ClipboardList size={28} />
-          </div>
-          <div className="biz-hub-body">
-            <h2>Register</h2>
-            <p>Start a new company — pick sector, entity type, state, and seed capital.</p>
-          </div>
-          <span className="biz-hub-go">
-            Open form <ArrowRight size={16} aria-hidden />
-          </span>
-        </Link>
-
-        <Link to="/business/mine" className="biz-hub-card mine">
-          <div className="biz-hub-icon" aria-hidden>
-            <FolderKanban size={28} />
-          </div>
-          <div className="biz-hub-body">
-            <h2>My businesses</h2>
-            <p>
-              {count === 0
-                ? 'No companies yet — register one to begin.'
-                : `${count} compan${count === 1 ? 'y' : 'ies'} · ${active} active · ${money(treasury)} in treasuries`}
-            </p>
-          </div>
-          <span className="biz-hub-go">
-            View portfolio <ArrowRight size={16} aria-hidden />
-          </span>
-        </Link>
-      </div>
-    </div>
+      <SysHubGrid>
+        <SysHubCard
+          to="/business/register"
+          title="Register"
+          blurb="New company filing"
+          cta="Open form"
+          Icon={ClipboardList}
+          tone="green"
+        />
+        <SysHubCard
+          to="/business/mine"
+          title="My businesses"
+          blurb={
+            count === 0
+              ? 'No companies on file'
+              : `${count} compan${count === 1 ? 'y' : 'ies'} · ${active} active · ${money(treasury)} in treasuries`
+          }
+          cta="View portfolio"
+          Icon={FolderKanban}
+          tone="blue"
+        />
+      </SysHubGrid>
+    </HubPageShell>
   );
 }

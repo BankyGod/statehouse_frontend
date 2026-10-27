@@ -35,9 +35,6 @@ export function NewsPage() {
         <h1>
           <Newspaper size={26} aria-hidden /> Newspaper
         </h1>
-        <p className="lede">
-          National and state headlines from elections, bills, budgets, and major events.
-        </p>
       </header>
 
       <div className="inline-form" style={{ marginBottom: '1rem' }}>

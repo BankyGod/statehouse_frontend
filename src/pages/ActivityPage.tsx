@@ -65,7 +65,6 @@ export function ActivityPage() {
         <h1>
           <Bell size={22} aria-hidden /> Activity
         </h1>
-        <p className="lede">Notifications, job offers, and recent activity.</p>
       </header>
 
       {invites.length > 0 && (

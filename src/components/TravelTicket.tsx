@@ -63,7 +63,7 @@ export function TravelTicket({
             </div>
           </div>
           <span className="travel-ticket-badge">
-            {option.ownership === 'government' ? 'STATE' : 'PRIVATE'}
+            STATE SOE
           </span>
         </header>
 

@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { FileBadge } from 'lucide-react';
 import { permitsApi, statesApi } from '../api/endpoints';
+import { HubBack } from '../components/SysHub';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { money } from '../lib/format';
@@ -57,13 +58,11 @@ export function PermitsPage() {
 
   return (
     <div>
+      <HubBack to="/nation" label="Nation" />
       <header className="page-header">
         <h1>
           <FileBadge size={26} aria-hidden /> Permits
         </h1>
-        <p className="lede">
-          Out-of-state work and business need permits. Home state: no work/travel permit required.
-        </p>
       </header>
 
       <section className="panel">
@@ -107,7 +106,7 @@ export function PermitsPage() {
           </button>
         </form>
         {hideWorkTravel && (
-          <p className="muted">Home state — work/travel permits not needed. Choose business or another state.</p>
+          <p className="muted">Home state — work/travel not required.</p>
         )}
       </section>
 

@@ -133,7 +133,6 @@ export function ProfilePage() {
         <h1>
           <IdCard size={22} aria-hidden /> Documents
         </h1>
-        <p className="lede">Official papers issued in United Amir.</p>
       </header>
 
       <section className="doc-section" aria-labelledby="wallet-cards-heading">
@@ -409,7 +408,6 @@ export function ProfilePage() {
         <h2>
           <IdCard size={18} aria-hidden /> Citizen record
         </h2>
-        <p className="lede">Status, situation, and registry details outside your papers.</p>
       </header>
 
       <section className="tbox profile-vitals-box">

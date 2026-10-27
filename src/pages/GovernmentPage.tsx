@@ -4,6 +4,7 @@ import { Building, LogOut, Shield } from 'lucide-react';
 import { governmentApi } from '../api/endpoints';
 import { ErrorNotice } from '../components/ErrorNotice';
 import { LockBanner } from '../components/LockBanner';
+import { HubBack } from '../components/SysHub';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -60,13 +61,11 @@ export function GovernmentPage() {
 
   return (
     <div className="play-page">
+      <HubBack to="/nation" label="Nation" />
       <header className="page-header compact">
         <h1>
           <Building size={22} aria-hidden /> Civil service
         </h1>
-        <p className="lede">
-          Take NPC-held government posts. Weekly wage on tick; education and reputation gate hiring.
-        </p>
       </header>
 
       <LockBanner />

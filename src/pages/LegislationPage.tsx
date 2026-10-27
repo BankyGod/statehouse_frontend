@@ -4,15 +4,16 @@ import { FileText, Gavel, ScrollText } from 'lucide-react';
 import { legislationApi, statesApi } from '../api/endpoints';
 import { useAuth } from '../context/AuthContext';
 import { ErrorNotice } from '../components/ErrorNotice';
+import { HubBack } from '../components/SysHub';
 import { useToast } from '../context/ToastContext';
-import { pct } from '../lib/format';
+import { money, pct } from '../lib/format';
 import { Timer } from '../components/Timer';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { usePoliticalRoles } from '../hooks/usePoliticalRoles';
 import type { Bill, VoteChoice } from '../types/api';
 
 export function LegislationPage() {
-  const { character } = useAuth();
+  const { character, refreshCharacter } = useAuth();
   const { isMp, isPresident } = usePoliticalRoles();
   const toast = useToast();
   const qc = useQueryClient();
@@ -56,9 +57,16 @@ export function LegislationPage() {
   const voteBillMut = useMutation({
     mutationFn: ({ id, choice }: { id: number; choice: VoteChoice }) =>
       legislationApi.voteBill(id, choice),
-    onSuccess: async (_res, vars) => {
-      toast.push(`Bill vote: ${vars.choice}`, 'ok');
+    onSuccess: async (res, vars) => {
+      const bonus = Number(res.session_bonus ?? 0);
+      toast.push(
+        bonus > 0
+          ? `Bill vote: ${vars.choice} · session stipend ${money(bonus)}`
+          : `Bill vote: ${vars.choice}`,
+        'ok',
+      );
       await qc.invalidateQueries({ queryKey: ['legislation'] });
+      if (bonus > 0) void refreshCharacter();
     },
     onError: (err) => toast.pushError(err),
   });
@@ -77,9 +85,16 @@ export function LegislationPage() {
   const voteBudgetMut = useMutation({
     mutationFn: ({ id, choice }: { id: number; choice: VoteChoice }) =>
       legislationApi.voteBudget(id, choice),
-    onSuccess: async (_res, vars) => {
-      toast.push(`Budget vote: ${vars.choice}`, 'ok');
+    onSuccess: async (res, vars) => {
+      const bonus = Number(res.session_bonus ?? 0);
+      toast.push(
+        bonus > 0
+          ? `Budget vote: ${vars.choice} · session stipend ${money(bonus)}`
+          : `Budget vote: ${vars.choice}`,
+        'ok',
+      );
       await qc.invalidateQueries({ queryKey: ['legislation'] });
+      if (bonus > 0) void refreshCharacter();
     },
     onError: (err) => toast.pushError(err),
   });
@@ -91,13 +106,11 @@ export function LegislationPage() {
 
   return (
     <div>
+      <HubBack to="/nation" label="Nation" />
       <header className="page-header">
         <h1>
           <ScrollText size={26} aria-hidden /> Legislation
         </h1>
-        <p className="lede">
-          National bills and budget readings. Debate windows run about 2.5 real days.
-        </p>
       </header>
 
       <section className="panel">

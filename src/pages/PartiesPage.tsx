@@ -3,6 +3,7 @@ import { Flag, LogOut, Users } from 'lucide-react';
 import { partiesApi } from '../api/endpoints';
 import { ErrorNotice } from '../components/ErrorNotice';
 import { LockBanner } from '../components/LockBanner';
+import { HubBack } from '../components/SysHub';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -59,11 +60,11 @@ export function PartiesPage() {
 
   return (
     <div className="play-page">
+      <HubBack to="/nation" label="Nation" />
       <header className="page-header compact">
         <h1>
           <Flag size={22} aria-hidden /> Parties
         </h1>
-        <p className="lede">Five national parties — join anytime; NPC chairs until players lead.</p>
       </header>
 
       <LockBanner />

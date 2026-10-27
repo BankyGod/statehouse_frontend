@@ -4,6 +4,7 @@ import { Landmark, Receipt, Scale, Send, Wallet } from 'lucide-react';
 import { treasuryApi } from '../api/endpoints';
 import { ErrorNotice } from '../components/ErrorNotice';
 import { LockBanner } from '../components/LockBanner';
+import { HubBack } from '../components/SysHub';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { money, pct } from '../lib/format';
@@ -95,14 +96,11 @@ export function TreasuryPage() {
 
   return (
     <div className="play-page">
+      <HubBack to="/nation" label="Nation" />
       <header className="page-header compact">
         <h1>
           <Landmark size={22} aria-hidden /> National Treasury
         </h1>
-        <p className="lede">
-          Country account for taxes, fees, fines, and public pay. Citizens see rates; officials see
-          the ledger.
-        </p>
       </header>
 
       <LockBanner />

@@ -1,18 +1,29 @@
+import { Navigate, useParams } from 'react-router-dom';
 import { useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Package, ShoppingBag, Store } from 'lucide-react';
 import { inventoryApi } from '../api/endpoints';
 import { ErrorNotice } from '../components/ErrorNotice';
+import { HubBack } from '../components/SysHub';
 import { LockBanner } from '../components/LockBanner';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { money } from '../lib/format';
 
+const SECTIONS = ['bag', 'shop', 'market'] as const;
+type Section = (typeof SECTIONS)[number];
+
 export function InventoryPage() {
+  const { section } = useParams();
+  const desk = (SECTIONS as readonly string[]).includes(section ?? '')
+    ? (section as Section)
+    : null;
+
   const { character, refreshCharacter } = useAuth();
   const toast = useToast();
   const qc = useQueryClient();
-  const locked = !!character?.is_jailed || !!character?.is_traveling || !!character?.is_hospitalized;
+  const locked =
+    !!character?.is_jailed || !!character?.is_traveling || !!character?.is_hospitalized;
 
   const [sellKey, setSellKey] = useState('');
   const [sellQty, setSellQty] = useState('1');
@@ -20,10 +31,15 @@ export function InventoryPage() {
   const [sellNote, setSellNote] = useState('');
 
   const invQ = useQuery({ queryKey: ['inventory', 'me'], queryFn: () => inventoryApi.me() });
-  const shopQ = useQuery({ queryKey: ['inventory', 'shop'], queryFn: () => inventoryApi.shop() });
+  const shopQ = useQuery({
+    queryKey: ['inventory', 'shop'],
+    queryFn: () => inventoryApi.shop(),
+    enabled: desk === 'shop',
+  });
   const marketQ = useQuery({
     queryKey: ['inventory', 'market'],
     queryFn: () => inventoryApi.market(),
+    enabled: desk === 'market',
     refetchInterval: 30_000,
   });
 
@@ -82,165 +98,178 @@ export function InventoryPage() {
     sellMut.mutate();
   }
 
+  if (!desk) return <Navigate to="/inventory" replace />;
+
+  const titles: Record<Section, { title: string; Icon: typeof Package }> = {
+    bag: { title: 'Your bag', Icon: ShoppingBag },
+    shop: { title: 'Shop', Icon: Store },
+    market: { title: 'Player market', Icon: Package },
+  };
+  const meta = titles[desk];
+
   return (
     <div className="play-page">
+      <HubBack to="/inventory" label="Inventory" />
       <header className="page-header compact">
         <h1>
-          <Package size={22} aria-hidden /> Inventory
+          <meta.Icon size={22} aria-hidden /> {meta.title}
         </h1>
-        <p className="lede">
-          Shop, bag, and player market. Cash {money(character?.cash ?? 0)}.
-        </p>
       </header>
 
       <LockBanner />
 
-      <section className="play-section">
-        <h2>
-          <ShoppingBag size={16} aria-hidden /> Your bag
-        </h2>
-        {invQ.isError && <ErrorNotice error={invQ.error} />}
-        {!invQ.data?.length && !invQ.isLoading && <p className="muted">Empty.</p>}
-        <div className="play-list">
-          {invQ.data?.map((item) => (
-            <article key={item.id} className="play-row">
-              <div className="play-row-main">
-                <div className="play-row-title">
-                  <strong>{item.name}</strong>
-                  <span className="badge">×{item.quantity}</span>
-                  <span className="badge">{item.kind}</span>
+      {desk === 'bag' && (
+        <section className="play-section">
+          {invQ.isError && <ErrorNotice error={invQ.error} />}
+          {!invQ.data?.length && !invQ.isLoading && <p className="muted">Empty.</p>}
+          <div className="play-list">
+            {invQ.data?.map((item) => (
+              <article key={item.id} className="play-row">
+                <div className="play-row-main">
+                  <div className="play-row-title">
+                    <strong>{item.name}</strong>
+                    <span className="badge">×{item.quantity}</span>
+                    <span className="badge">{item.kind}</span>
+                  </div>
+                  <p className="muted play-row-desc">{item.description}</p>
                 </div>
-                <p className="muted play-row-desc">{item.description}</p>
-              </div>
-              {item.kind === 'consumable' && (
+                {item.kind === 'consumable' && (
+                  <button
+                    type="button"
+                    className="btn primary"
+                    disabled={locked || useMut.isPending}
+                    onClick={() => useMut.mutate(item.item_key)}
+                  >
+                    Use
+                  </button>
+                )}
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {desk === 'shop' && (
+        <section className="play-section">
+          {shopQ.isLoading && <p className="muted">Loading shop…</p>}
+          {shopQ.isError && <ErrorNotice error={shopQ.error} />}
+          <div className="play-list">
+            {shopQ.data?.map((item) => (
+              <article key={item.item_key} className="play-row">
+                <div className="play-row-main">
+                  <div className="play-row-title">
+                    <strong>{item.name}</strong>
+                    <span className="badge">{item.kind}</span>
+                  </div>
+                  <p className="muted play-row-desc">{item.description}</p>
+                  <div className="play-row-meta">
+                    <span className="cash">{money(item.shop_price)}</span>
+                  </div>
+                </div>
                 <button
                   type="button"
-                  className="btn primary"
-                  disabled={locked || useMut.isPending}
-                  onClick={() => useMut.mutate(item.item_key)}
+                  className="btn"
+                  disabled={locked || buyMut.isPending}
+                  onClick={() => buyMut.mutate({ key: item.item_key, qty: 1 })}
                 >
-                  Use
+                  Buy
                 </button>
-              )}
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <section className="play-section">
-        <h2>
-          <Store size={16} aria-hidden /> Shop
-        </h2>
-        {shopQ.isLoading && <p className="muted">Loading shop…</p>}
-        {shopQ.isError && <ErrorNotice error={shopQ.error} />}
-        <div className="play-list">
-          {shopQ.data?.map((item) => (
-            <article key={item.item_key} className="play-row">
-              <div className="play-row-main">
-                <div className="play-row-title">
-                  <strong>{item.name}</strong>
-                  <span className="badge">{item.kind}</span>
-                </div>
-                <p className="muted play-row-desc">{item.description}</p>
-                <div className="play-row-meta">
-                  <span className="cash">{money(item.shop_price)}</span>
-                </div>
-              </div>
-              <button
-                type="button"
-                className="btn"
-                disabled={locked || buyMut.isPending}
-                onClick={() => buyMut.mutate({ key: item.item_key, qty: 1 })}
-              >
-                Buy
-              </button>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <section className="panel">
-        <h2>List on market</h2>
-        <form className="stack-form" onSubmit={onSell}>
-          <label>
-            Item
-            <select
-              value={sellKey}
-              onChange={(e) => setSellKey(e.target.value)}
-              required
-              disabled={locked}
-            >
-              <option value="">Select…</option>
-              {invQ.data?.map((i) => (
-                <option key={i.id} value={i.item_key}>
-                  {i.name} (×{i.quantity})
-                </option>
-              ))}
-            </select>
-          </label>
-          <div className="inline-form">
-            <label>
-              Qty
-              <input
-                type="number"
-                min={1}
-                max={50}
-                value={sellQty}
-                onChange={(e) => setSellQty(e.target.value)}
-                disabled={locked}
-              />
-            </label>
-            <label>
-              Price each
-              <input
-                type="number"
-                min={0.01}
-                step={0.01}
-                value={sellPrice}
-                onChange={(e) => setSellPrice(e.target.value)}
-                disabled={locked}
-              />
-            </label>
+              </article>
+            ))}
           </div>
-          <label>
-            Note <span className="muted">(optional)</span>
-            <input value={sellNote} onChange={(e) => setSellNote(e.target.value)} disabled={locked} />
-          </label>
-          <button type="submit" className="btn primary" disabled={locked || sellMut.isPending}>
-            {sellMut.isPending ? 'Listing…' : 'List for sale'}
-          </button>
-        </form>
-      </section>
+        </section>
+      )}
 
-      <section className="play-section">
-        <h2>Player market</h2>
-        {!marketQ.data?.length && <p className="muted">No listings.</p>}
-        <div className="play-list">
-          {marketQ.data?.map((l) => (
-            <article key={l.id} className="play-row">
-              <div className="play-row-main">
-                <div className="play-row-title">
-                  <strong>{l.name}</strong>
-                  <span className="badge">×{l.quantity}</span>
-                </div>
-                <div className="play-row-meta">
-                  <span className="cash">{money(l.price_each)} each</span>
-                  {l.note && <span className="muted">{l.note}</span>}
-                  <span className="muted sm">seller #{l.seller_id}</span>
-                </div>
+      {desk === 'market' && (
+        <>
+          <section className="panel">
+            <h2>List on market</h2>
+            <form className="stack-form" onSubmit={onSell}>
+              <label>
+                Item
+                <select
+                  value={sellKey}
+                  onChange={(e) => setSellKey(e.target.value)}
+                  required
+                  disabled={locked}
+                >
+                  <option value="">Select…</option>
+                  {invQ.data?.map((i) => (
+                    <option key={i.id} value={i.item_key}>
+                      {i.name} (×{i.quantity})
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <div className="inline-form">
+                <label>
+                  Qty
+                  <input
+                    type="number"
+                    min={1}
+                    max={50}
+                    value={sellQty}
+                    onChange={(e) => setSellQty(e.target.value)}
+                    disabled={locked}
+                  />
+                </label>
+                <label>
+                  Price each
+                  <input
+                    type="number"
+                    min={0.01}
+                    step={0.01}
+                    value={sellPrice}
+                    onChange={(e) => setSellPrice(e.target.value)}
+                    disabled={locked}
+                  />
+                </label>
               </div>
-              <button
-                type="button"
-                className="btn primary"
-                disabled={locked || marketBuyMut.isPending || l.seller_id === character?.id}
-                onClick={() => marketBuyMut.mutate(l.id)}
-              >
-                Buy
+              <label>
+                Note <span className="muted">(optional)</span>
+                <input
+                  value={sellNote}
+                  onChange={(e) => setSellNote(e.target.value)}
+                  disabled={locked}
+                />
+              </label>
+              <button type="submit" className="btn primary" disabled={locked || sellMut.isPending}>
+                {sellMut.isPending ? 'Listing…' : 'List for sale'}
               </button>
-            </article>
-          ))}
-        </div>
-      </section>
+            </form>
+          </section>
+
+          <section className="play-section">
+            <h2>Open listings</h2>
+            {!marketQ.data?.length && <p className="muted">No listings.</p>}
+            <div className="play-list">
+              {marketQ.data?.map((l) => (
+                <article key={l.id} className="play-row">
+                  <div className="play-row-main">
+                    <div className="play-row-title">
+                      <strong>{l.name}</strong>
+                      <span className="badge">×{l.quantity}</span>
+                    </div>
+                    <div className="play-row-meta">
+                      <span className="cash">{money(l.price_each)} each</span>
+                      {l.note && <span className="muted">{l.note}</span>}
+                      <span className="muted sm">seller #{l.seller_id}</span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn primary"
+                    disabled={locked || marketBuyMut.isPending || l.seller_id === character?.id}
+                    onClick={() => marketBuyMut.mutate(l.id)}
+                  >
+                    Buy
+                  </button>
+                </article>
+              ))}
+            </div>
+          </section>
+        </>
+      )}
     </div>
   );
 }

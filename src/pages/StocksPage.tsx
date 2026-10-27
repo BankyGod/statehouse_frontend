@@ -6,7 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { ErrorNotice } from '../components/ErrorNotice';
 import { useToast } from '../context/ToastContext';
 import { money } from '../lib/format';
-import { historyStats, type PricePoint } from '../lib/stockHistory';
+import type { PricePoint } from '../lib/stockHistory';
 import { StockChart } from '../components/StockChart';
 
 type MarketFilter = 'all' | 'booming' | 'held';
@@ -25,7 +25,7 @@ export function StocksPage() {
   const [ipoBusinessId, setIpoBusinessId] = useState('');
   const [ipoSymbol, setIpoSymbol] = useState('');
   const [ipoShares, setIpoShares] = useState('5000');
-  const [ipoPrice, setIpoPrice] = useState('10');
+  const [ipoPrice, setIpoPrice] = useState('3');
   const [founderPct, setFounderPct] = useState('0.4');
   const [orderShares, setOrderShares] = useState('1');
   const [orderPrice, setOrderPrice] = useState('');
@@ -192,12 +192,12 @@ export function StocksPage() {
     ipoMut.mutate();
   }
 
-  function deltaFor(id: number, price: number) {
-    if (id === selectedId && chartPoints.length > 1) {
-      return price - chartPoints[0].price;
+  function changePctFor(l: { id: number; share_price: number; change_pct?: number }) {
+    if (typeof l.change_pct === 'number') return l.change_pct;
+    if (l.id === selectedId && chartPoints.length > 1 && chartPoints[0].price > 0) {
+      return ((l.share_price - chartPoints[0].price) / chartPoints[0].price) * 100;
     }
-    const stats = historyStats(chartPoints);
-    return id === selectedId ? stats.change : 0;
+    return 0;
   }
 
   return (
@@ -206,7 +206,6 @@ export function StocksPage() {
         <h1>
           <CandlestickChart size={22} aria-hidden /> Stocks
         </h1>
-        <p className="lede">Select a ticker, trade below the chart, browse the full market.</p>
       </header>
 
       <div className="stocks-board">
@@ -281,19 +280,19 @@ export function StocksPage() {
           </div>
           <div className="stocks-side-list">
             {listings.map((l) => {
-              const d = deltaFor(l.id, l.share_price);
+              const pct = changePctFor(l);
               return (
                 <button
                   key={l.id}
                   type="button"
-                  className={`stock-side-item ${l.id === selectedId ? 'active' : ''} ${d >= 0 ? 'up' : 'down'}`}
+                  className={`stock-side-item ${l.id === selectedId ? 'active' : ''} ${pct >= 0 ? 'up' : 'down'}`}
                   onClick={() => setSelectedId(l.id)}
                 >
                   <strong>{l.symbol}</strong>
                   <span>{money(l.share_price)}</span>
                   <em>
-                    {d >= 0 ? '+' : ''}
-                    {d.toFixed(2)}
+                    {pct >= 0 ? '+' : ''}
+                    {pct.toFixed(2)}%
                   </em>
                 </button>
               );
@@ -391,7 +390,7 @@ export function StocksPage() {
             </thead>
             <tbody>
               {filtered.map((l) => {
-                const d = deltaFor(l.id, l.share_price);
+                const pct = changePctFor(l);
                 const held = heldByListing.get(l.id)?.shares;
                 return (
                   <tr
@@ -404,14 +403,21 @@ export function StocksPage() {
                       {l.is_booming && <span className="badge active">Hot</span>}
                       {held != null && <span className="badge">×{held}</span>}
                     </td>
-                    <td>{l.name}</td>
+                    <td>
+                      {l.name}
+                      {l.issuer_name && l.issuer_name !== l.name && (
+                        <span className="muted sm"> · {l.issuer_name}</span>
+                      )}
+                    </td>
                     <td className="num">{money(l.share_price)}</td>
-                    <td className={`num ${d >= 0 ? 'cash' : 'danger-text'}`}>
-                      {d >= 0 ? '+' : ''}
-                      {d.toFixed(2)}
+                    <td className={`num ${pct >= 0 ? 'cash' : 'danger-text'}`}>
+                      {pct >= 0 ? '+' : ''}
+                      {pct.toFixed(2)}%
                     </td>
                     <td className="num muted">{l.float_shares.toLocaleString()}</td>
-                    <td className="muted">{l.issuer_type}</td>
+                    <td className="muted">
+                      {l.issuer_type === 'government' ? 'SOE' : 'Business'}
+                    </td>
                   </tr>
                 );
               })}
@@ -421,7 +427,7 @@ export function StocksPage() {
 
         <div className="stock-mobile-list">
           {filtered.map((l) => {
-            const d = deltaFor(l.id, l.share_price);
+            const pct = changePctFor(l);
             const held = heldByListing.get(l.id)?.shares;
             return (
               <button
@@ -434,13 +440,15 @@ export function StocksPage() {
                   <strong>{l.symbol}</strong>
                   {l.is_booming && <span className="badge active">Hot</span>}
                   {held != null && <span className="badge">×{held}</span>}
-                  <span className="muted sm">{l.name}</span>
+                  <span className="muted sm">
+                    {l.issuer_name || l.name}
+                  </span>
                 </div>
                 <div className="stock-mobile-meta">
                   <span className="num">{money(l.share_price)}</span>
-                  <span className={`num sm ${d >= 0 ? 'cash' : 'danger-text'}`}>
-                    {d >= 0 ? '+' : ''}
-                    {d.toFixed(2)}
+                  <span className={`num sm ${pct >= 0 ? 'cash' : 'danger-text'}`}>
+                    {pct >= 0 ? '+' : ''}
+                    {pct.toFixed(2)}%
                   </span>
                 </div>
               </button>
@@ -542,7 +550,7 @@ export function StocksPage() {
       <section className="panel">
         <h2>IPO your business</h2>
         {!activeBiz.length && (
-          <p className="muted">You need an active business before listing shares.</p>
+          <p className="muted">No active business to list.</p>
         )}
         {!!activeBiz.length && (
           <form className="stack-form" onSubmit={onIpo}>
@@ -590,8 +598,8 @@ export function StocksPage() {
                 IPO price
                 <input
                   type="number"
-                  min={0.01}
-                  step={0.01}
+                  min={0.25}
+                  step={0.25}
                   value={ipoPrice}
                   onChange={(e) => setIpoPrice(e.target.value)}
                   required

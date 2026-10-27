@@ -36,6 +36,8 @@ export const FALLBACK_BUSINESS_CATALOG: BusinessCatalog = {
     { value: 'accounting', label: 'Accounting / finance services', group: 'Professional' },
     { value: 'real_estate', label: 'Real estate / property', group: 'Professional' },
     { value: 'private_security', label: 'Private security', group: 'Security' },
+    { value: 'insurance', label: 'Insurance', group: 'Professional' },
+    { value: 'telecom', label: 'Telecom / ISP', group: 'Knowledge' },
     { value: 'other', label: 'General / other', group: 'Other' },
   ],
   entity_types: [

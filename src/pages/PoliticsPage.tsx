@@ -8,6 +8,7 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import type { Candidacy, RaceType } from '../types/api';
 import { ConfirmModal } from '../components/ConfirmModal';
+import { HubBack } from '../components/SysHub';
 import { usePoliticalRoles } from '../hooks/usePoliticalRoles';
 
 export function PoliticsPage() {
@@ -83,17 +84,21 @@ export function PoliticsPage() {
 
   const seats = parliamentQ.data?.seats ?? [];
   const president = parliamentQ.data?.president;
+  const officePay = parliamentQ.data?.office_pay;
+
+  const myPayQ = useQuery({
+    queryKey: ['politics', 'office-pay', 'me', character?.id],
+    queryFn: () => politicsApi.myOfficePay(),
+    enabled: !!character?.id && (isPresident || isMp),
+  });
 
   return (
-    <div>
-      <header className="page-header">
+    <div className="play-page">
+      <HubBack to="/nation" label="Nation" />
+      <header className="page-header compact">
         <h1>
-          <Scale size={26} aria-hidden /> Politics
+          <Scale size={22} aria-hidden /> Politics
         </h1>
-        <p className="lede">
-          Optional late-game path: parliament seats, presidential race, run or vote when elections
-          open.
-        </p>
       </header>
 
       <section className="panel">
@@ -109,6 +114,13 @@ export function PoliticsPage() {
             {isMp && (
               <span className="badge active">
                 MP{mpSeat ? ` · ${mpSeat.state_name}` : ''}
+              </span>
+            )}
+            {myPayQ.data && myPayQ.data.weekly_gross > 0 && (
+              <span className="muted">
+                {' '}
+                · ~${myPayQ.data.weekly_gross.toFixed(0)}/wk before tax
+                {myPayQ.data.roles.some((r) => r.scandal) ? ' (scandal cut)' : ''}
               </span>
             )}
           </p>
@@ -166,6 +178,39 @@ export function PoliticsPage() {
           })}
         </div>
       </section>
+
+      {officePay && (
+        <section className="panel">
+          <h2>
+            <Trophy size={18} aria-hidden /> Office pay
+          </h2>
+          <p className="muted">{officePay.note}</p>
+          <div className="list-table">
+            {Object.entries(officePay.offices).map(([key, pkg]) => (
+              <div key={key} className="list-row">
+                <div>
+                  <strong>{pkg.label}</strong>
+                  <p className="muted">
+                    ${pkg.salary.toFixed(0)} salary + ${pkg.duty_allowance.toFixed(0)} duty + $
+                    {pkg.housing_allowance.toFixed(0)} housing
+                  </p>
+                </div>
+                <div className="list-meta">
+                  <strong>${pkg.weekly_total.toFixed(0)}/wk</strong>
+                </div>
+              </div>
+            ))}
+          </div>
+          <p className="muted" style={{ marginTop: '0.75rem' }}>
+            Bonuses: session ${officePay.bonuses.session_mp}/{officePay.bonuses.session_minister}{' '}
+            (MP/minister) · budget pass ${officePay.bonuses.budget_president}/$
+            {officePay.bonuses.budget_finance}/${officePay.bonuses.budget_mp_yes} · election win $
+            {officePay.bonuses.election_president}/${officePay.bonuses.election_mp}. Scandal (heat ≥
+            {officePay.scandal.heat_threshold} or record) pays{' '}
+            {Math.round(officePay.scandal.pay_factor * 100)}%.
+          </p>
+        </section>
+      )}
 
       <section className="panel">
         <h2>

@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import { Navigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowDownToLine,
@@ -12,12 +13,21 @@ import {
 import { bankApi } from '../api/endpoints';
 import { useAuth } from '../context/AuthContext';
 import { ErrorNotice } from '../components/ErrorNotice';
+import { HubBack } from '../components/SysHub';
 import { useToast } from '../context/ToastContext';
 import { money, pct } from '../lib/format';
 import { LockBanner } from '../components/LockBanner';
 import type { Loan } from '../types/api';
 
+const BANK_SECTIONS = ['cash', 'loans', 'transfer', 'ledger'] as const;
+type BankSection = (typeof BANK_SECTIONS)[number];
+
 export function BankPage() {
+  const { section } = useParams();
+  const desk = (BANK_SECTIONS as readonly string[]).includes(section ?? '')
+    ? (section as BankSection)
+    : null;
+
   const { character, refreshCharacter, patchCharacter } = useAuth();
   const toast = useToast();
   const qc = useQueryClient();
@@ -141,244 +151,261 @@ export function BankPage() {
     { label: 'All bank', value: Math.floor(bankBal * 100) / 100, disabled: bankBal <= 0 },
   ];
 
+  if (!desk) return <Navigate to="/bank" replace />;
+
+  const titles: Record<BankSection, { title: string; Icon: typeof Landmark }> = {
+    cash: { title: 'Cash desk', Icon: Wallet },
+    loans: { title: 'Loans', Icon: PiggyBank },
+    transfer: { title: 'Transfer', Icon: ArrowLeftRight },
+    ledger: { title: 'Ledger', Icon: Receipt },
+  };
+  const meta = titles[desk];
+
   return (
-    <div className="play-page has-dock">
+    <div className={`play-page ${desk === 'cash' ? 'has-dock' : ''}`}>
+      <HubBack to="/bank" label="Bank" />
       <header className="page-header compact">
         <h1>
-          <Landmark size={22} aria-hidden /> Bank
+          <meta.Icon size={22} aria-hidden /> {meta.title}
         </h1>
-        <p className="lede">Move cash, transfer, borrow, and check the ledger.</p>
       </header>
 
       <LockBanner />
 
-      <section className="bank-balances">
-        <div className="bank-bal-card">
-          <Wallet size={16} aria-hidden />
-          <em>Cash</em>
-          <strong className="cash">{money(cash)}</strong>
-        </div>
-        <div className="bank-bal-card">
-          <PiggyBank size={16} aria-hidden />
-          <em>Bank</em>
-          <strong className="cash">{money(bankBal)}</strong>
-        </div>
-        {summary?.savings_apr != null && (
-          <div className="bank-bal-card">
-            <PiggyBank size={16} aria-hidden />
-            <em>Savings APR</em>
-            <strong>{(summary.savings_apr * 100).toFixed(1)}%</strong>
-          </div>
-        )}
-        {summary?.transfer_fee != null && (
+      {(desk === 'cash' || desk === 'loans' || desk === 'transfer') && (
+        <section className="bank-balances">
           <div className="bank-bal-card">
             <Wallet size={16} aria-hidden />
-            <em>Transfer fee</em>
-            <strong>{money(summary.transfer_fee)}</strong>
+            <em>Cash</em>
+            <strong className="cash">{money(cash)}</strong>
           </div>
-        )}
-      </section>
-
-      <section className="play-hero ready bank-move">
-        <form
-          className="bank-move-form"
-          onSubmit={(e) => {
-            e.preventDefault();
-            onDeposit();
-          }}
-        >
-          <label className="bank-amount">
-            Amount
-            <input
-              type="number"
-              min="0.01"
-              step="0.01"
-              inputMode="decimal"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              required
-              disabled={locked}
-            />
-          </label>
-          <div className="bank-quick">
-            {quickAmounts.map((q) => (
-              <button
-                key={q.label}
-                type="button"
-                className="btn ghost sm"
-                disabled={locked || q.disabled || !q.value}
-                onClick={() => setAmount(String(q.value))}
-              >
-                {q.label}
-              </button>
-            ))}
+          <div className="bank-bal-card">
+            <PiggyBank size={16} aria-hidden />
+            <em>Bank</em>
+            <strong className="cash">{money(bankBal)}</strong>
           </div>
-          <div className="bank-move-actions">
-            <button
-              type="button"
-              className="btn primary"
-              disabled={locked || busy}
-              onClick={() => onDeposit()}
-            >
-              <ArrowDownToLine size={15} aria-hidden />
-              {depositMut.isPending ? '…' : 'Deposit'}
-            </button>
-            <button
-              type="button"
-              className="btn"
-              disabled={locked || busy}
-              onClick={() => onWithdraw()}
-            >
-              <ArrowUpFromLine size={15} aria-hidden />
-              {withdrawMut.isPending ? '…' : 'Withdraw'}
-            </button>
-          </div>
-        </form>
-      </section>
+          {desk === 'cash' && summary?.savings_apr != null && (
+            <div className="bank-bal-card">
+              <PiggyBank size={16} aria-hidden />
+              <em>Savings APR</em>
+              <strong>{(summary.savings_apr * 100).toFixed(1)}%</strong>
+            </div>
+          )}
+          {desk === 'transfer' && summary?.transfer_fee != null && (
+            <div className="bank-bal-card">
+              <Wallet size={16} aria-hidden />
+              <em>Transfer fee</em>
+              <strong>{money(summary.transfer_fee)}</strong>
+            </div>
+          )}
+        </section>
+      )}
 
-      <section className="panel">
-        <h2>
-          <ArrowLeftRight size={18} aria-hidden /> Transfer
-        </h2>
-        <p className="muted">Send bank funds by display name (min $10).</p>
-        <form
-          className="inline-form stack-form"
-          onSubmit={(e) => {
-            e.preventDefault();
-            const n = parseAmount(transferAmount);
-            if (n == null) return toast.push('Enter a positive amount.', 'err');
-            if (transferTo.trim().length < 3) return toast.push('Enter a display name.', 'err');
-            transferMut.mutate({ to: transferTo.trim(), n });
-          }}
-        >
-          <label>
-            To (display name)
-            <input
-              value={transferTo}
-              onChange={(e) => setTransferTo(e.target.value)}
-              minLength={3}
-              maxLength={64}
-              required
-              disabled={locked}
-              autoComplete="off"
-            />
-          </label>
-          <label>
-            Amount
-            <input
-              type="number"
-              min="10"
-              step="0.01"
-              inputMode="decimal"
-              value={transferAmount}
-              onChange={(e) => setTransferAmount(e.target.value)}
-              required
-              disabled={locked}
-            />
-          </label>
-          <button type="submit" className="btn primary" disabled={locked || transferMut.isPending}>
-            {transferMut.isPending ? 'Sending…' : 'Transfer'}
-          </button>
-        </form>
-      </section>
-
-      <section className="panel">
-        <h2>New loan</h2>
-        <form className="inline-form stack-form" onSubmit={onLoan}>
-          <label>
-            Principal
-            <input
-              type="number"
-              min="0.01"
-              step="0.01"
-              inputMode="decimal"
-              value={loanAmount}
-              onChange={(e) => setLoanAmount(e.target.value)}
-              required
-              disabled={locked}
-            />
-          </label>
-          <button type="submit" className="btn primary" disabled={locked || loanMut.isPending}>
-            {loanMut.isPending ? 'Requesting…' : 'Take loan'}
-          </button>
-        </form>
-      </section>
-
-      <section className="play-section">
-        <h2>Loans</h2>
-        {!summary?.loans?.length && <p className="muted">No loans yet.</p>}
-        <div className="play-list">
-          {summary?.loans?.map((loan) => (
-            <LoanRow
-              key={loan.id}
-              loan={loan}
-              locked={locked}
-              value={repayAmount[loan.id] ?? ''}
-              onChange={(v) => setRepayAmount((m) => ({ ...m, [loan.id]: v }))}
-              busy={repayMut.isPending}
-              onRepay={() => {
-                const n = parseAmount(repayAmount[loan.id] ?? '');
-                if (n == null) return toast.push('Enter a positive repay amount.', 'err');
-                repayMut.mutate({ id: loan.id, n });
+      {desk === 'cash' && (
+        <>
+          <section className="play-hero ready bank-move">
+            <form
+              className="bank-move-form"
+              onSubmit={(e) => {
+                e.preventDefault();
+                onDeposit();
               }}
-            />
-          ))}
-        </div>
-      </section>
+            >
+              <label className="bank-amount">
+                Amount
+                <input
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  inputMode="decimal"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  required
+                  disabled={locked}
+                />
+              </label>
+              <div className="bank-quick">
+                {quickAmounts.map((q) => (
+                  <button
+                    key={q.label}
+                    type="button"
+                    className="btn ghost sm"
+                    disabled={locked || q.disabled || !q.value}
+                    onClick={() => setAmount(String(q.value))}
+                  >
+                    {q.label}
+                  </button>
+                ))}
+              </div>
+              <div className="bank-move-actions">
+                <button
+                  type="button"
+                  className="btn primary"
+                  disabled={locked || busy}
+                  onClick={() => onDeposit()}
+                >
+                  <ArrowDownToLine size={15} aria-hidden />
+                  {depositMut.isPending ? '…' : 'Deposit'}
+                </button>
+                <button
+                  type="button"
+                  className="btn"
+                  disabled={locked || busy}
+                  onClick={() => onWithdraw()}
+                >
+                  <ArrowUpFromLine size={15} aria-hidden />
+                  {withdrawMut.isPending ? '…' : 'Withdraw'}
+                </button>
+              </div>
+            </form>
+          </section>
 
-      <section className="panel">
-        <h2>
-          <Receipt size={18} aria-hidden /> Recent transactions
-        </h2>
-        {txQ.isLoading && <p className="muted">Loading ledger…</p>}
-        {txQ.isError && <ErrorNotice error={txQ.error} />}
-        {!txQ.data?.length && !txQ.isLoading && <p className="muted">No transactions yet.</p>}
-        <div className="play-list ledger-list">
-          {txQ.data?.map((tx) => (
-            <div key={tx.id} className="play-row compact">
-              <div className="play-row-main">
-                <div className="play-row-title">
-                  <strong>{tx.tx_type}</strong>
-                  <span className="cash">{money(tx.amount)}</span>
-                </div>
-                <p className="muted play-row-desc">
-                  {tx.note ?? '—'}
-                  {tx.counterparty_id != null ? ` · #${tx.counterparty_id}` : ''}
-                </p>
-                <div className="play-row-meta">
-                  <span>Bal {money(tx.balance_after)}</span>
-                  <span className="muted sm">{new Date(tx.posted_at).toLocaleString()}</span>
+          <div className="play-dock bank-dock">
+            <div className="play-dock-info">
+              <strong className="cash">{money(cash)}</strong>
+              <span className="muted">cash · bank {money(bankBal)}</span>
+            </div>
+            <div className="bank-dock-actions">
+              <button
+                type="button"
+                className="btn primary sm"
+                disabled={locked || busy}
+                onClick={() => onDeposit()}
+              >
+                Deposit
+              </button>
+              <button
+                type="button"
+                className="btn sm"
+                disabled={locked || busy}
+                onClick={() => onWithdraw()}
+              >
+                Withdraw
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {desk === 'transfer' && (
+        <section className="panel">
+          <form
+            className="inline-form stack-form"
+            onSubmit={(e) => {
+              e.preventDefault();
+              const n = parseAmount(transferAmount);
+              if (n == null) return toast.push('Enter a positive amount.', 'err');
+              if (transferTo.trim().length < 3) return toast.push('Enter a display name.', 'err');
+              transferMut.mutate({ to: transferTo.trim(), n });
+            }}
+          >
+            <label>
+              To (display name)
+              <input
+                value={transferTo}
+                onChange={(e) => setTransferTo(e.target.value)}
+                minLength={3}
+                maxLength={64}
+                required
+                disabled={locked}
+                autoComplete="off"
+              />
+            </label>
+            <label>
+              Amount
+              <input
+                type="number"
+                min="10"
+                step="0.01"
+                inputMode="decimal"
+                value={transferAmount}
+                onChange={(e) => setTransferAmount(e.target.value)}
+                required
+                disabled={locked}
+              />
+            </label>
+            <button type="submit" className="btn primary" disabled={locked || transferMut.isPending}>
+              {transferMut.isPending ? 'Sending…' : 'Transfer'}
+            </button>
+          </form>
+        </section>
+      )}
+
+      {desk === 'loans' && (
+        <>
+          <section className="panel">
+            <h2>New loan</h2>
+            <form className="inline-form stack-form" onSubmit={onLoan}>
+              <label>
+                Principal
+                <input
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  inputMode="decimal"
+                  value={loanAmount}
+                  onChange={(e) => setLoanAmount(e.target.value)}
+                  required
+                  disabled={locked}
+                />
+              </label>
+              <button type="submit" className="btn primary" disabled={locked || loanMut.isPending}>
+                {loanMut.isPending ? 'Requesting…' : 'Take loan'}
+              </button>
+            </form>
+          </section>
+
+          <section className="play-section">
+            <h2>Open loans</h2>
+            {!summary?.loans?.length && <p className="muted">No loans yet.</p>}
+            <div className="play-list">
+              {summary?.loans?.map((loan) => (
+                <LoanRow
+                  key={loan.id}
+                  loan={loan}
+                  locked={locked}
+                  value={repayAmount[loan.id] ?? ''}
+                  onChange={(v) => setRepayAmount((m) => ({ ...m, [loan.id]: v }))}
+                  busy={repayMut.isPending}
+                  onRepay={() => {
+                    const n = parseAmount(repayAmount[loan.id] ?? '');
+                    if (n == null) return toast.push('Enter a positive repay amount.', 'err');
+                    repayMut.mutate({ id: loan.id, n });
+                  }}
+                />
+              ))}
+            </div>
+          </section>
+        </>
+      )}
+
+      {desk === 'ledger' && (
+        <section className="panel">
+          {txQ.isLoading && <p className="muted">Loading ledger…</p>}
+          {txQ.isError && <ErrorNotice error={txQ.error} />}
+          {!txQ.data?.length && !txQ.isLoading && <p className="muted">No transactions yet.</p>}
+          <div className="play-list ledger-list">
+            {txQ.data?.map((tx) => (
+              <div key={tx.id} className="play-row compact">
+                <div className="play-row-main">
+                  <div className="play-row-title">
+                    <strong>{tx.tx_type}</strong>
+                    <span className="cash">{money(tx.amount)}</span>
+                  </div>
+                  <p className="muted play-row-desc">
+                    {tx.note ?? '—'}
+                    {tx.counterparty_id != null ? ` · #${tx.counterparty_id}` : ''}
+                  </p>
+                  <div className="play-row-meta">
+                    <span>Bal {money(tx.balance_after)}</span>
+                    <span className="muted sm">{new Date(tx.posted_at).toLocaleString()}</span>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <div className="play-dock bank-dock">
-        <div className="play-dock-info">
-          <strong className="cash">{money(cash)}</strong>
-          <span className="muted">cash · bank {money(bankBal)}</span>
-        </div>
-        <div className="bank-dock-actions">
-          <button
-            type="button"
-            className="btn primary sm"
-            disabled={locked || busy}
-            onClick={() => onDeposit()}
-          >
-            Deposit
-          </button>
-          <button
-            type="button"
-            className="btn sm"
-            disabled={locked || busy}
-            onClick={() => onWithdraw()}
-          >
-            Withdraw
-          </button>
-        </div>
-      </div>
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 }

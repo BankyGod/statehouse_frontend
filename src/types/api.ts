@@ -339,6 +339,41 @@ export type OfficeHolder = {
   is_npc: boolean;
 };
 
+export type OfficePayPackage = {
+  label: string;
+  salary: number;
+  duty_allowance: number;
+  housing_allowance: number;
+  weekly_total: number;
+};
+
+export type OfficePayCatalog = {
+  offices: Record<string, OfficePayPackage>;
+  bonuses: Record<string, number>;
+  scandal: { heat_threshold: number; pay_factor: number };
+  note: string;
+};
+
+export type OfficePayRole = {
+  office: string;
+  salary: number;
+  duty_allowance: number;
+  housing_allowance: number;
+  weekly_total: number;
+  scandal: boolean;
+  gross: number;
+  title?: string;
+  portfolio?: string;
+  state_id?: number;
+  state_name?: string;
+};
+
+export type MyOfficePay = {
+  roles: OfficePayRole[];
+  weekly_gross: number;
+  catalog: OfficePayCatalog;
+};
+
 export type Parliament = {
   seats: ParliamentSeat[];
   majority_needed: number;
@@ -348,6 +383,7 @@ export type Parliament = {
   speaker?: OfficeHolder;
   /** @deprecated prefer speaker.character_id */
   speaker_character_id?: number | null;
+  office_pay?: OfficePayCatalog;
 };
 
 export type Election = {
@@ -427,6 +463,8 @@ export type CabinetSeat = {
   name: string;
   is_npc: boolean;
   appointed_at: string | null;
+  weekly_salary?: number;
+  pay?: OfficePayRole;
 };
 
 export type Cabinet = {
@@ -545,9 +583,13 @@ export type StockListing = {
   symbol: string;
   name: string;
   issuer_type: string;
+  issuer_name?: string;
   business_id: number | null;
+  enterprise_id?: number | null;
+  enterprise_slug?: string | null;
   description: string;
   share_price: number;
+  change_pct?: number;
   total_shares: number;
   float_shares: number;
   founder_shares: number;
@@ -662,6 +704,8 @@ export type TravelQuote = {
 };
 
 export type TravelOption = {
+  enterprise_id?: number | null;
+  enterprise_name?: string | null;
   carrier_id: number;
   carrier_slug: string;
   carrier_name: string;

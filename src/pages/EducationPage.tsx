@@ -57,10 +57,6 @@ export function EducationPage() {
         <h1>
           <GraduationCap size={26} aria-hidden /> Education
         </h1>
-        <p className="lede">
-          Choose a school, then a course — public and private institutions across United Amir.
-          One active enrollment at a time.
-        </p>
       </header>
 
       <section className="panel">

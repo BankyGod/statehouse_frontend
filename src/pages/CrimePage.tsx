@@ -4,6 +4,7 @@ import { AlertOctagon, Flame, Gavel, Skull, Zap } from 'lucide-react';
 import { crimeApi, jailApi, statesApi } from '../api/endpoints';
 import { useAuth } from '../context/AuthContext';
 import { ErrorNotice } from '../components/ErrorNotice';
+import { HubBack } from '../components/SysHub';
 import { useToast } from '../context/ToastContext';
 import { money, pct } from '../lib/format';
 import { ConfirmModal } from '../components/ConfirmModal';
@@ -66,13 +67,11 @@ export function CrimePage() {
 
   return (
     <div className="play-page">
+      <HubBack to="/crime" label="Crime" />
       <header className="page-header compact">
         <h1>
-          <Skull size={22} aria-hidden /> Crime
+          <Skull size={22} aria-hidden /> Streets
         </h1>
-        <p className="lede danger-text">
-          <AlertOctagon size={14} aria-hidden /> Risky side path — catch rates run high.
-        </p>
       </header>
 
       <LockBanner />

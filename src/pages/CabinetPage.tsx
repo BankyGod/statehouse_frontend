@@ -5,6 +5,7 @@ import { BriefcaseBusiness, LogOut, UserPlus, UserX } from 'lucide-react';
 import { cabinetApi } from '../api/endpoints';
 import { useAuth } from '../context/AuthContext';
 import { ErrorNotice } from '../components/ErrorNotice';
+import { HubBack } from '../components/SysHub';
 import { useToast } from '../context/ToastContext';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { usePoliticalRoles } from '../hooks/usePoliticalRoles';
@@ -102,13 +103,11 @@ export function CabinetPage() {
 
   return (
     <div>
+      <HubBack to="/nation" label="Nation" />
       <header className="page-header">
         <h1>
           <BriefcaseBusiness size={26} aria-hidden /> Cabinet
         </h1>
-        <p className="lede">
-          National cabinet portfolios. NPC ministers fill empty seats until players are appointed.
-        </p>
       </header>
 
       <section className="panel">
@@ -124,6 +123,15 @@ export function CabinetPage() {
                   ? ` · since ${new Date(mySeat.appointed_at).toLocaleString()}`
                   : ''}
               </p>
+              {mySeat.weekly_salary != null && (
+                <p className="muted">
+                  Weekly pay ~${Number(mySeat.weekly_salary).toFixed(0)}
+                  {mySeat.pay
+                    ? ` ($${mySeat.pay.salary.toFixed(0)} + $${mySeat.pay.duty_allowance.toFixed(0)} duty + $${mySeat.pay.housing_allowance.toFixed(0)} housing)`
+                    : ''}
+                  {mySeat.pay?.scandal ? ' · scandal cut' : ''} · from treasury, taxed as income
+                </p>
+              )}
             </div>
             <button
               type="button"
@@ -143,10 +151,6 @@ export function CabinetPage() {
           <h2>
             <UserPlus size={18} aria-hidden /> Appoint minister
           </h2>
-          <p className="muted">
-            Appoint by <strong>username</strong> (login name). Optional character id must match
-            that account. Replaces the current NPC or player — no dismiss needed for NPCs.
-          </p>
           <form className="inline-form" onSubmit={onAppoint}>
             <label>
               Portfolio

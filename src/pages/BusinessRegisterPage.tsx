@@ -85,9 +85,6 @@ export function BusinessRegisterPage() {
         <h1>
           <Building2 size={22} aria-hidden /> Register a company
         </h1>
-        <p className="lede">
-          Choose sector and entity type, seed the treasury, and wait out registration.
-        </p>
       </header>
 
       <LockBanner />
@@ -182,7 +179,6 @@ export function BusinessRegisterPage() {
               onChange={(e) => setStartingCapital(e.target.value)}
             />
           </label>
-          <p className="muted">Seeded into the company treasury (paid from your cash with the fee).</p>
           <label>
             Description <span className="muted">(optional)</span>
             <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} />

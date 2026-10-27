@@ -19,7 +19,6 @@ export function StatesPage() {
         <h1>
           <Map size={26} aria-hidden /> States of United Amir
         </h1>
-        <p className="lede">Twenty states. Home is identity — permits gate the rest.</p>
       </header>
       {statesQ.isLoading && <p>Loading…</p>}
       {statesQ.isError && <ErrorNotice error={statesQ.error} />}

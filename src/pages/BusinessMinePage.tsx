@@ -37,7 +37,6 @@ export function BusinessMinePage() {
         <h1>
           <Building2 size={22} aria-hidden /> My businesses
         </h1>
-        <p className="lede">Open a company card to manage treasury, staff, and stock.</p>
       </header>
 
       <LockBanner />

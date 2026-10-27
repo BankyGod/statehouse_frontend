@@ -9,11 +9,13 @@ import { money } from '../lib/format';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { LockBanner } from '../components/LockBanner';
 import { useJobListing } from '../hooks/useJobDetails';
+import { usePoliticalRoles } from '../hooks/usePoliticalRoles';
 import { useState } from 'react';
 import type { JobListing } from '../types/api';
 
 export function JobsPage() {
   const { character, refreshCharacter, patchCharacter } = useAuth();
+  const { holdsOffice } = usePoliticalRoles();
   const toast = useToast();
   const qc = useQueryClient();
   const locked =
@@ -117,10 +119,20 @@ export function JobsPage() {
   const lowEnergy = currentListing != null && energy < energyNeed;
   // Work is allowed without a resolved listing — API validates energy/job.
   const canWork =
-    !!jobQ.data && !companyJob && !locked && !lowEnergy && !workMut.isPending;
+    !!jobQ.data &&
+    !companyJob &&
+    !holdsOffice &&
+    !locked &&
+    !lowEnergy &&
+    !workMut.isPending;
 
   function canHire(l: JobListing): { ok: boolean; reason?: string } {
     if (locked) return { ok: false, reason: 'Actions locked' };
+    if (holdsOffice)
+      return {
+        ok: false,
+        reason: 'Political office — employee jobs closed (you can still own a business)',
+      };
     if (companyJob) return { ok: false, reason: 'On company payroll — leave that job first' };
     if (jobQ.data?.listing_id === l.id) return { ok: false, reason: 'Already hired' };
     if (l.min_education_level > eduLevel) {
@@ -145,26 +157,28 @@ export function JobsPage() {
   }
 
   return (
-    <div className={`play-page ${jobQ.data && !companyJob ? 'has-dock' : ''}`}>
+    <div className={`play-page ${jobQ.data && !companyJob && !holdsOffice ? 'has-dock' : ''}`}>
       <header className="page-header compact">
         <h1>
           <Briefcase size={22} aria-hidden /> Jobs
         </h1>
-        <p className="lede">
-          Hire in {stateQ.data?.name ?? 'your current state'}, work shifts for cash. Energy gates
-          every shift.
-        </p>
       </header>
 
       <LockBanner />
 
-      {companyInvites.length > 0 && (
+      {holdsOffice && (
+        <section className="panel" style={{ marginBottom: '0.85rem' }}>
+          <h2 style={{ marginTop: 0 }}>Political office</h2>
+          <p className="muted">
+            Employee roles are unavailable while in office.{' '}
+            <Link to="/politics">Politics</Link>
+          </p>
+        </section>
+      )}
+
+      {companyInvites.length > 0 && !holdsOffice && (
         <section className="panel" style={{ marginBottom: '0.85rem' }}>
           <h2 style={{ marginTop: 0 }}>Company job offers</h2>
-          <p className="muted sm">
-            Accepting ends your current state job automatically. You can also manage these in{' '}
-            <Link to="/inbox">Inbox</Link>.
-          </p>
           <div className="inbox-list">
             {companyInvites.map((inv) => (
               <article key={inv.id} className="inbox-item offer">
@@ -198,10 +212,24 @@ export function JobsPage() {
         </section>
       )}
 
-      <section className={`play-hero ${companyJob || jobQ.data ? 'ready' : 'empty'}`}>
+      <section
+        className={`play-hero ${!holdsOffice && (companyJob || jobQ.data) ? 'ready' : 'empty'}`}
+      >
         {jobQ.isLoading && <p className="muted">Checking job…</p>}
         {jobQ.isError && <ErrorNotice error={jobQ.error} />}
-        {companyJob && (
+        {holdsOffice && (
+          <div className="play-hero-copy">
+            <span className="play-kicker">
+              <Hammer size={12} aria-hidden /> Public office
+            </span>
+            <strong>Not available for hire</strong>
+            <p className="muted">
+              Your vocation is political office. Own a business if you want private income on the
+              side.
+            </p>
+          </div>
+        )}
+        {!holdsOffice && companyJob && (
           <>
             <div className="play-hero-copy">
               <span className="play-kicker">
@@ -215,7 +243,7 @@ export function JobsPage() {
             </div>
           </>
         )}
-        {!jobQ.isLoading && !jobQ.data && !companyJob && (
+        {!holdsOffice && !jobQ.isLoading && !jobQ.data && !companyJob && (
           <>
             <div className="play-hero-copy">
               <strong>Unemployed</strong>
@@ -232,7 +260,7 @@ export function JobsPage() {
             </button>
           </>
         )}
-        {jobQ.data && !companyJob && (
+        {!holdsOffice && jobQ.data && !companyJob && (
           <>
             <div className="play-hero-copy">
               <span className="play-kicker">
@@ -341,7 +369,7 @@ export function JobsPage() {
         </div>
       </section>
 
-      {jobQ.data && !companyJob && (
+      {jobQ.data && !companyJob && !holdsOffice && (
         <div className="play-dock">
           <div className="play-dock-info">
             <strong>{currentListing?.title ?? 'Job'}</strong>

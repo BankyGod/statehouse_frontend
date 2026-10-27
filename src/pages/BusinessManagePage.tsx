@@ -65,7 +65,7 @@ export function BusinessManagePage() {
   const [listDesc, setListDesc] = useState('');
   const [ipoSymbol, setIpoSymbol] = useState('');
   const [ipoShares, setIpoShares] = useState('5000');
-  const [ipoPrice, setIpoPrice] = useState('10');
+  const [ipoPrice, setIpoPrice] = useState('3');
   const [founderPct, setFounderPct] = useState('0.4');
 
   const statesQ = useQuery({
@@ -93,6 +93,74 @@ export function BusinessManagePage() {
     queryKey: ['businesses', businessId, 'listings'],
     queryFn: () => businessesApi.listings(businessId),
     enabled: !!business && isRealEstate,
+  });
+
+  const commerceQ = useQuery({
+    queryKey: ['businesses', businessId, 'commerce'],
+    queryFn: () => businessesApi.commerce(businessId),
+    enabled: !!business && !isRealEstate && active,
+    refetchInterval: 20_000,
+  });
+
+  const [stockSku, setStockSku] = useState('');
+  const [stockQty, setStockQty] = useState('10');
+  const [stockPrice, setStockPrice] = useState('');
+  const [wholesaleSellerId, setWholesaleSellerId] = useState('');
+  const [wholesaleSku, setWholesaleSku] = useState('');
+  const [wholesaleQty, setWholesaleQty] = useState('5');
+
+  const supplyQ = useQuery({
+    queryKey: ['businesses', 'marketplace', 'b2b'],
+    queryFn: () => businessesApi.marketplace({}),
+    enabled: !!business && !isRealEstate && active,
+    refetchInterval: 30_000,
+  });
+
+  const stockMut = useMutation({
+    mutationFn: () =>
+      businessesApi.stockItem(businessId, stockSku, Number(stockQty) || 1),
+    onSuccess: async (res) => {
+      toast.push(
+        `${String(res.action ?? 'Stocked')} — spent ${money(Number(res.spent ?? 0))}.`,
+        'ok',
+      );
+      await qc.invalidateQueries({ queryKey: ['businesses', businessId, 'commerce'] });
+      await qc.invalidateQueries({ queryKey: ['businesses', 'me'] });
+    },
+    onError: (err) => toast.pushError(err),
+  });
+
+  const priceMut = useMutation({
+    mutationFn: () =>
+      businessesApi.priceItem(businessId, {
+        sku: stockSku,
+        sell_price: Number(stockPrice),
+        is_listed: true,
+      }),
+    onSuccess: async () => {
+      toast.push('Price updated.', 'ok');
+      await qc.invalidateQueries({ queryKey: ['businesses', businessId, 'commerce'] });
+    },
+    onError: (err) => toast.pushError(err),
+  });
+
+  const wholesaleMut = useMutation({
+    mutationFn: () =>
+      businessesApi.wholesaleBuy(businessId, {
+        seller_business_id: Number(wholesaleSellerId),
+        sku: wholesaleSku,
+        quantity: Number(wholesaleQty) || 1,
+      }),
+    onSuccess: async (res) => {
+      toast.push(
+        `Bought supply — paid ${money(Number(res.paid ?? 0))} from company cash.`,
+        'ok',
+      );
+      await qc.invalidateQueries({ queryKey: ['businesses', businessId, 'commerce'] });
+      await qc.invalidateQueries({ queryKey: ['businesses', 'me'] });
+      await qc.invalidateQueries({ queryKey: ['businesses', 'marketplace'] });
+    },
+    onError: (err) => toast.pushError(err),
   });
 
   const propertyCatalogQ = useQuery({
@@ -539,10 +607,6 @@ export function BusinessManagePage() {
                       {isRealEstate ? 'Property stock' : 'Inventory'}
                     </button>
                   </div>
-                  <p className="muted sm" style={{ marginTop: '0.75rem' }}>
-                    Grow revenue and staff to raise your performance score — that unlocks a public
-                    stock listing for investors.
-                  </p>
                 </article>
               </div>
             </section>
@@ -606,7 +670,7 @@ export function BusinessManagePage() {
                         ))}
                       </ul>
                       <p className="muted sm">
-                        Listing fee {money(perf.ipo.listing_fee)} (from company treasury).
+                        Listing fee {money(perf.ipo.listing_fee)}
                       </p>
                     </article>
                   </div>
@@ -638,10 +702,6 @@ export function BusinessManagePage() {
                         livePrice={perf.stock.share_price}
                         booming={perf.stock.is_booming}
                       />
-                      <p className="muted sm" style={{ marginTop: '0.5rem' }}>
-                        Chart ticks come from company ops profits/losses and investor trades — not
-                        random noise.
-                      </p>
                     </div>
                   ) : (
                     <form
@@ -660,10 +720,6 @@ export function BusinessManagePage() {
                       }}
                     >
                       <h3 className="span-2">Launch IPO</h3>
-                      <p className="muted sm span-2">
-                        Once listed, investors can buy your float. Share price then tracks real
-                        company performance and market trades.
-                      </p>
                       <label>
                         Symbol
                         <input
@@ -688,8 +744,8 @@ export function BusinessManagePage() {
                         IPO price
                         <input
                           type="number"
-                          min={1}
-                          step={0.5}
+                          min={0.25}
+                          step={0.25}
                           value={ipoPrice}
                           onChange={(e) => setIpoPrice(e.target.value)}
                           disabled={locked || !perf.ipo.eligible}
@@ -700,7 +756,7 @@ export function BusinessManagePage() {
                         <input
                           type="number"
                           min={0.1}
-                          max={0.8}
+                          max={0.7}
                           step={0.05}
                           value={founderPct}
                           onChange={(e) => setFounderPct(e.target.value)}
@@ -1093,10 +1149,6 @@ export function BusinessManagePage() {
                   <h2>Property stock</h2>
                   <span className="muted sm">{stockCount} listings</span>
                 </div>
-                <p className="muted sm">
-                  Pick the state where the property sits — only people in that state can rent or
-                  buy it. Outside your home state you need an active business permit for that soil.
-                </p>
                 {propertyCatalogQ.isError && <ErrorNotice error={propertyCatalogQ.error} />}
                 {listingsQ.isError && <ErrorNotice error={listingsQ.error} />}
 
@@ -1330,11 +1382,219 @@ export function BusinessManagePage() {
               </section>
             ) : (
               <section className="biz-dash-pane">
-                <h2>Stock desk</h2>
+                <div className="biz-pane-head">
+                  <h2>Inventory & services</h2>
+                  <Link to="/marketplace" className="btn sm">
+                    Open marketplace
+                  </Link>
+                </div>
                 <p className="muted">
-                  Product inventory for {sectorLabel(business.sector)} is not online yet. Real-estate
-                  companies use this desk to acquire and list property stock.
+                  {sectorLabel(business.sector)} earns from real customer purchases and bookings —
+                  not automatic fake sales. Stock goods or offer services; 5% sales tax goes to the
+                  treasury.
                 </p>
+                {commerceQ.isLoading && <p className="muted">Loading desk…</p>}
+                {commerceQ.isError && <ErrorNotice error={commerceQ.error} />}
+                {commerceQ.data && (
+                  <>
+                    {(commerceQ.data.catalog.products?.length ?? 0) > 0 && (
+                      <form
+                        className="biz-stock-form"
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          if (!stockSku) {
+                            toast.push('Pick a SKU.', 'err');
+                            return;
+                          }
+                          stockMut.mutate();
+                        }}
+                      >
+                        <h3 className="span-2">Produce / restock</h3>
+                        <label>
+                          Product
+                          <select
+                            value={stockSku}
+                            onChange={(e) => {
+                              setStockSku(e.target.value);
+                              const meta = commerceQ.data?.catalog.products?.find(
+                                (p) => String(p.sku) === e.target.value,
+                              );
+                              if (meta?.default_price != null) {
+                                setStockPrice(String(meta.default_price));
+                              }
+                            }}
+                            disabled={locked || !active}
+                          >
+                            <option value="">Select…</option>
+                            {commerceQ.data.catalog.products.map((p) => (
+                              <option key={String(p.sku)} value={String(p.sku)}>
+                                {String(p.label)} ({String(p.kind)}) · cost{' '}
+                                {money(Number(p.unit_cost))}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label>
+                          Qty
+                          <input
+                            type="number"
+                            min={1}
+                            value={stockQty}
+                            onChange={(e) => setStockQty(e.target.value)}
+                            disabled={locked || !active}
+                          />
+                        </label>
+                        <div className="biz-stock-submit">
+                          <button
+                            type="submit"
+                            className="btn primary"
+                            disabled={locked || !active || stockMut.isPending}
+                          >
+                            {stockMut.isPending ? 'Working…' : 'Add stock'}
+                          </button>
+                        </div>
+                      </form>
+                    )}
+                    {(commerceQ.data.catalog.products?.length ?? 0) > 0 && (
+                      <form
+                        className="biz-stock-form"
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          if (!stockSku || !stockPrice) {
+                            toast.push('SKU and price required.', 'err');
+                            return;
+                          }
+                          priceMut.mutate();
+                        }}
+                      >
+                        <h3 className="span-2">Set list price</h3>
+                        <label>
+                          Sell price
+                          <input
+                            type="number"
+                            min={0.25}
+                            step={0.25}
+                            value={stockPrice}
+                            onChange={(e) => setStockPrice(e.target.value)}
+                            disabled={locked || !active}
+                          />
+                        </label>
+                        <div className="biz-stock-submit">
+                          <button
+                            type="submit"
+                            className="btn"
+                            disabled={locked || !active || priceMut.isPending}
+                          >
+                            Update price
+                          </button>
+                        </div>
+                      </form>
+                    )}
+                    <h3>On hand</h3>
+                    {!commerceQ.data.inventory.length && (
+                      <p className="muted">No inventory yet — restock above.</p>
+                    )}
+                    <div className="list-table">
+                      {commerceQ.data.inventory.map((i) => (
+                        <div key={String(i.id)} className="list-row">
+                          <div>
+                            <strong>{String(i.label)}</strong>
+                            <p className="muted">
+                              {String(i.sku)} · qty {Number(i.quantity)}
+                              {i.is_listed ? '' : ' · unlisted'}
+                            </p>
+                          </div>
+                          <div className="list-meta">
+                            <strong>{money(Number(i.sell_price))}</strong>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    {(commerceQ.data.catalog.services?.length ?? 0) > 0 && (
+                      <>
+                        <h3>Services customers can book</h3>
+                        <ul className="kv">
+                          {commerceQ.data.catalog.services.map((s) => (
+                            <li key={String(s.sku)}>
+                              <span>{String(s.label)}</span>
+                              <strong>{money(Number(s.default_price))}</strong>
+                            </li>
+                          ))}
+                        </ul>
+                        <p className="muted sm">
+                          Players book these on the{' '}
+                          <Link to="/marketplace">Marketplace</Link>. Trucking/shipping pay corridor
+                          fees to national rail/ports.
+                        </p>
+                      </>
+                    )}
+                    <h3>Buy wholesale (B2B)</h3>
+                    <p className="muted sm">
+                      Spend company cash on other firms&apos; listed stock — mining → manufacturing →
+                      retail supply chain.
+                    </p>
+                    <form
+                      className="biz-stock-form"
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        if (!wholesaleSellerId || !wholesaleSku) {
+                          toast.push('Pick a supplier listing.', 'err');
+                          return;
+                        }
+                        wholesaleMut.mutate();
+                      }}
+                    >
+                      <label className="span-2">
+                        Supplier stock
+                        <select
+                          value={
+                            wholesaleSellerId && wholesaleSku
+                              ? `${wholesaleSellerId}:${wholesaleSku}`
+                              : ''
+                          }
+                          onChange={(e) => {
+                            const [sid, sku] = e.target.value.split(':');
+                            setWholesaleSellerId(sid || '');
+                            setWholesaleSku(sku || '');
+                          }}
+                          disabled={locked || !active}
+                        >
+                          <option value="">Select listing…</option>
+                          {(supplyQ.data?.products ?? [])
+                            .filter((p) => Number(p.business_id) !== businessId)
+                            .map((p) => (
+                              <option
+                                key={`${p.business_id}-${p.sku}`}
+                                value={`${p.business_id}:${p.sku}`}
+                              >
+                                {String(p.business_name)} · {String(p.label)} ·{' '}
+                                {money(Number(p.sell_price))} (qty {Number(p.quantity)})
+                              </option>
+                            ))}
+                        </select>
+                      </label>
+                      <label>
+                        Qty
+                        <input
+                          type="number"
+                          min={1}
+                          value={wholesaleQty}
+                          onChange={(e) => setWholesaleQty(e.target.value)}
+                          disabled={locked || !active}
+                        />
+                      </label>
+                      <div className="biz-stock-submit">
+                        <button
+                          type="submit"
+                          className="btn"
+                          disabled={locked || !active || wholesaleMut.isPending}
+                        >
+                          {wholesaleMut.isPending ? 'Buying…' : 'Buy for company'}
+                        </button>
+                      </div>
+                    </form>
+                  </>
+                )}
               </section>
             ))}
         </div>
